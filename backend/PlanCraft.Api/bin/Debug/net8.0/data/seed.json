@@ -1,0 +1,200 @@
+{
+  "People": [
+    {
+      "Name": "Ana",
+      "CapacityHoursPerWeek": 40,
+      "Color": "#ef4444",
+      "Skills": [
+        "react",
+        "api"
+      ]
+    },
+    {
+      "Name": "Boris",
+      "CapacityHoursPerWeek": 40,
+      "Color": "#10b981",
+      "Skills": [
+        "dotnet",
+        "sql"
+      ]
+    },
+    {
+      "Name": "Ceda",
+      "CapacityHoursPerWeek": 32,
+      "Color": "#f59e0b",
+      "Skills": [
+        "qa",
+        "pm"
+      ]
+    },
+    {
+      "Name": "Dina",
+      "CapacityHoursPerWeek": 40,
+      "Color": "#6366f1",
+      "Skills": [
+        "react",
+        "design"
+      ]
+    },
+    {
+      "Name": "Ema",
+      "CapacityHoursPerWeek": 24,
+      "Color": "#06b6d4",
+      "Skills": [
+        "api",
+        "etl"
+      ]
+    }
+  ],
+  "Banks": [
+    {
+      "Name": "API",
+      "Color": "#2563eb"
+    },
+    {
+      "Name": "Sparkasse",
+      "Color": "#22c55e"
+    },
+    {
+      "Name": "Srpska",
+      "Color": "#f97316"
+    }
+  ],
+  "Projects": [
+    {
+      "Name": "Mira",
+      "BankId": 1,
+      "Color": "#3b82f6"
+    },
+    {
+      "Name": "Alpha Premium APIs",
+      "BankId": 1
+    },
+    {
+      "Name": "Beta PIS",
+      "BankId": 2
+    },
+    {
+      "Name": "Gamma AISP",
+      "BankId": 3
+    }
+  ],
+  "ProjectMilestones": [
+    {
+      "ProjectId": 1,
+      "Name": "Sandbox Live",
+      "Date": "2025-09-08"
+    },
+    {
+      "ProjectId": 3,
+      "Name": "Go-Live",
+      "Date": "2025-10-20"
+    }
+  ],
+  "Tasks": [
+    {
+      "ProjectId": 1,
+      "Title": "Gateway & mTLS setup",
+      "EstimatedDays": 10,
+      "StartDate": "2025-08-18",
+      "DurationDays": 10,
+      "Status": 2,
+      "RequiredSkills": [
+        "dotnet",
+        "api"
+      ]
+    },
+    {
+      "ProjectId": 1,
+      "Title": "AIS flows (redirect)",
+      "EstimatedDays": 15,
+      "StartDate": "2025-08-25",
+      "DurationDays": 15,
+      "Status": 1,
+      "RequiredSkills": [
+        "react",
+        "api"
+      ]
+    },
+    {
+      "ProjectId": 3,
+      "Title": "PIS flows (decoupled)",
+      "EstimatedDays": 20,
+      "StartDate": "2025-08-18",
+      "DurationDays": 20,
+      "Status": 1,
+      "RequiredSkills": [
+        "dotnet",
+        "api"
+      ]
+    },
+    {
+      "ProjectId": 4,
+      "Title": "Consent UI revamp",
+      "EstimatedDays": 12,
+      "StartDate": "2025-09-01",
+      "DurationDays": 12,
+      "Status": 1,
+      "RequiredSkills": [
+        "react",
+        "design"
+      ]
+    },
+    {
+      "ProjectId": 2,
+      "Title": "Fraud hooks + TRA",
+      "EstimatedDays": 18,
+      "StartDate": "2025-09-15",
+      "DurationDays": 18,
+      "Status": 0,
+      "RequiredSkills": [
+        "dotnet",
+        "sql"
+      ]
+    }
+  ],
+  "TaskAssignments": [
+    {
+      "TaskId": 1,
+      "PersonId": 2,
+      "SharePercent": 100,
+      "IsPrimary": true
+    },
+    {
+      "TaskId": 2,
+      "PersonId": 1,
+      "SharePercent": 60,
+      "IsPrimary": true
+    },
+    {
+      "TaskId": 2,
+      "PersonId": 4,
+      "SharePercent": 40,
+      "IsPrimary": false
+    },
+    {
+      "TaskId": 3,
+      "PersonId": 2,
+      "SharePercent": 70,
+      "IsPrimary": true
+    },
+    {
+      "TaskId": 3,
+      "PersonId": 5,
+      "SharePercent": 30,
+      "IsPrimary": false
+    },
+    {
+      "TaskId": 4,
+      "PersonId": 4,
+      "SharePercent": 100,
+      "IsPrimary": true
+    }
+  ],
+  "TaskDependencies": [
+    {
+      "TaskId": 2,
+      "DependsOnTaskId": 1
+    }
+  ]
+}
