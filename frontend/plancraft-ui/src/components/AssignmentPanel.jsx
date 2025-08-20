@@ -3,7 +3,7 @@ import { fetchPeople, apiPost, apiPut, apiDelete } from '../lib/api'
 
 export default function AssignmentPanel({ open, task, onClose, refresh }){
   const [people, setPeople] = useState([])
-  const [rows, setRows] = useState([]) // {id?, personId, sharePercent, isPrimary}
+  const [rows, setRows] = useState([])
   const [original, setOriginal] = useState([])
 
   useEffect(() => { fetchPeople().then(setPeople) }, [])

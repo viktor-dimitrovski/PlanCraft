@@ -2,18 +2,21 @@
   --grid-border: #e5e7eb;
   --task-text: #0f172a;
   --muted: #64748b;
+  --critical: #ef4444;
+  --blocked: #f59e0b;
 }
 * { box-sizing: border-box; }
 body { margin: 0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #0f172a; background: #f8fafc; }
 .app { display: grid; grid-template-rows: auto 1fr; height: 100vh; }
 .topbar { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: white; border-bottom: 1px solid var(--grid-border); }
 .brand { font-weight: 700; }
-.toolbar { margin-left: auto; display: flex; gap: 8px; }
+.toolbar { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 select, button, input { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--grid-border); background: white; }
 button.primary { background: #111827; color: white; border-color: #111827; }
 
-.container { display: grid; grid-template-columns: 240px 1fr; height: calc(100vh - 54px); }
+.container { display: grid; grid-template-columns: 260px 1fr 280px; height: calc(100vh - 54px); }
 .sidebar { border-right: 1px solid var(--grid-border); background: white; padding: 12px; overflow: auto; }
+.rightbar { border-left: 1px solid var(--grid-border); background: white; padding: 12px; overflow: auto; }
 .gridwrap { overflow: auto; position: relative; }
 
 .grid { position: relative; padding-bottom: 24px; }
@@ -34,9 +37,14 @@ button.primary { background: #111827; color: white; border-color: #111827; }
 .taskTag { font-size: 10px; padding: 2px 6px; border-radius: 999px; background: rgba(255,255,255,.6); border: 1px solid rgba(0,0,0,.06); }
 .assignmentStripes { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
 .assignmentStripes > div { height: 100%; float: left; opacity: .35; }
+.resizeHandle { position:absolute; right:-6px; top:4px; bottom:4px; width:10px; cursor: ew-resize; background: rgba(0,0,0,.05); border-radius: 6px; }
 
 .tooltip { position: absolute; z-index: 5; background: white; border: 1px solid var(--grid-border); padding: 8px 10px; border-radius: 8px; box-shadow: 0 12px 36px rgba(2,6,23,.15); font-size: 12px; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px; }
 .legend > span { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--grid-border); padding: 4px 8px; border-radius: 999px; background: white; font-size: 12px; }
 .legendDot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
 .milestone { position: absolute; top: 0; transform: translateY(-50%); height: 8px; width: 8px; border-radius: 999px; border: 2px solid white; box-shadow: 0 1px 0 rgba(0,0,0,.06); }
+
+.badge { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:2px 6px; border:1px solid var(--grid-border); border-radius:999px; background:white }
+.critOutline { box-shadow: 0 0 0 2px var(--critical) inset; }
+.blockOutline { box-shadow: 0 0 0 2px var(--blocked) inset; }

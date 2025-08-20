@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:5058/api';
+const BASE = (import.meta.env.VITE_API_BASE) || 'http://localhost:5058/api';
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}/${path}`, {
@@ -18,8 +18,8 @@ export const apiPost = (path, body) => request(path, { method: 'POST', body: JSO
 export const apiPut = (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) });
 export const apiDelete = (path) => request(path, { method: 'DELETE' });
 
-export async function fetchGrid(from, to) {
-  const url = `plan/grid?from=${from}&to=${to}`;
+export async function fetchGrid(from, to, scenarioId) {
+  const url = `plan/grid?from=${from}&to=${to}` + (scenarioId? `&scenarioId=${scenarioId}` : '');
   return apiGet(url);
 }
 export async function fetchPeople(){ return apiGet('people'); }
@@ -27,9 +27,12 @@ export async function fetchProjects(){ return apiGet('projects'); }
 export async function autobalance(from, to, targetLoad=0.85){
   return apiPost('plan/autobalance', { from, to, targetLoad });
 }
-export async function moveTask(taskId, newStartDate, newPrimaryPersonId){
-  return apiPost('plan/move', { taskId, newStartDate, newPrimaryPersonId });
+export async function moveTask(payload){
+  return apiPost('plan/move', payload);
 }
-export async function backlogSuggestions(personId, from, to){
-  return apiGet(`suggestions/backlog?personId=${personId}&from=${from}&to=${to}`);
-}
+export async function getScenarios(){ return apiGet('scenarios'); }
+export async function createScenario(name){ return apiPost('scenarios', { name }); }
+export async function compareScenario(sid){ return apiGet(`plan/compare?scenarioId=${sid}`); }
+export async function forecast(projectId){ return apiGet(`plan/forecast?projectId=${projectId}`); }
+export async function apiCreateTask(task){ return apiPost('tasks', task); }
+export async function apiCreateAssignment(a){ return apiPost('assignments', a); }

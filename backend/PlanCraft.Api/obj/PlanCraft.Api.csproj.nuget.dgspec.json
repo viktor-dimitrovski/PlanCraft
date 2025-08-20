@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\viktor\\Desktop\\Workspace\\PlanCraft\\backend\\PlanCraft.Api\\PlanCraft.Api.csproj": {}
+    "D:\\GIT\\my-projects\\PlanCraft\\backend\\PlanCraft.Api\\PlanCraft.Api.csproj": {}
   },
   "projects": {
-    "C:\\Users\\viktor\\Desktop\\Workspace\\PlanCraft\\backend\\PlanCraft.Api\\PlanCraft.Api.csproj": {
+    "D:\\GIT\\my-projects\\PlanCraft\\backend\\PlanCraft.Api\\PlanCraft.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\viktor\\Desktop\\Workspace\\PlanCraft\\backend\\PlanCraft.Api\\PlanCraft.Api.csproj",
+        "projectUniqueName": "D:\\GIT\\my-projects\\PlanCraft\\backend\\PlanCraft.Api\\PlanCraft.Api.csproj",
         "projectName": "PlanCraft.Api",
-        "projectPath": "C:\\Users\\viktor\\Desktop\\Workspace\\PlanCraft\\backend\\PlanCraft.Api\\PlanCraft.Api.csproj",
+        "projectPath": "D:\\GIT\\my-projects\\PlanCraft\\backend\\PlanCraft.Api\\PlanCraft.Api.csproj",
         "packagesPath": "C:\\Users\\viktor\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\viktor\\Desktop\\Workspace\\PlanCraft\\backend\\PlanCraft.Api\\obj\\",
+        "outputPath": "D:\\GIT\\my-projects\\PlanCraft\\backend\\PlanCraft.Api\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\viktor\\AppData\\Roaming\\NuGet\\NuGet.Config",
@@ -53,6 +53,14 @@
             "Npgsql.EntityFrameworkCore.PostgreSQL": {
               "target": "Package",
               "version": "[8.0.4, )"
+            },
+            "Serilog.AspNetCore": {
+              "target": "Package",
+              "version": "[8.0.1, )"
+            },
+            "Serilog.Sinks.Console": {
+              "target": "Package",
+              "version": "[5.0.1, )"
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",

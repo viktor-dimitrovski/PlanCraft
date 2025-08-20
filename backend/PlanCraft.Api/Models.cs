@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using System.Text.Json.Serialization;
 
 namespace PlanCraft.Api;
@@ -14,8 +15,28 @@ public class PlanCraftDb : DbContext
     public DbSet<TaskDependency> TaskDependencies => Set<TaskDependency>();
     public DbSet<ProjectMilestone> ProjectMilestones => Set<ProjectMilestone>();
 
+    public DbSet<PersonTimeOff> TimeOffs => Set<PersonTimeOff>();
+    public DbSet<Holiday> Holidays => Set<Holiday>();
+
+    public DbSet<Scenario> Scenarios => Set<Scenario>();
+    public DbSet<ScenarioTaskOverride> ScenarioOverrides => Set<ScenarioTaskOverride>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
+        foreach (var entityType in b.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTime) || property.ClrType == typeof(DateTime?))
+                {
+                    property.SetValueConverter(new ValueConverter<DateTime, DateTime>(
+                        v => v.Kind == DateTimeKind.Utc ? v : v.ToUniversalTime(),
+                        v => DateTime.SpecifyKind(v, DateTimeKind.Utc)));
+                }
+            }
+        }
+
+
         b.Entity<Person>().HasIndex(p => p.Name).IsUnique();
         b.Entity<Bank>().HasIndex(p => p.Name).IsUnique();
         b.Entity<Project>().HasOne(p => p.Bank).WithMany().HasForeignKey(p => p.BankId).OnDelete(DeleteBehavior.Cascade);
@@ -25,6 +46,24 @@ public class PlanCraftDb : DbContext
         b.Entity<TaskDependency>().HasOne(d => d.Task).WithMany().HasForeignKey(d => d.TaskId).OnDelete(DeleteBehavior.Cascade);
         b.Entity<TaskDependency>().HasOne(d => d.DependsOnTask).WithMany().HasForeignKey(d => d.DependsOnTaskId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<ProjectMilestone>().HasOne(m => m.Project).WithMany().HasForeignKey(m => m.ProjectId).OnDelete(DeleteBehavior.Cascade);
+
+        // UTC converters
+        b.Entity<TaskItem>().Property(t => t.StartDate).HasConversion(
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+        );
+        b.Entity<ProjectMilestone>().Property(m => m.Date).HasConversion(
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+        );
+        b.Entity<PersonTimeOff>().Property(p => p.Date).HasConversion(
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+        );
+        b.Entity<Scenario>().Property(s => s.CreatedAt).HasConversion(
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
+        );
     }
 }
 
@@ -34,7 +73,7 @@ public record Person
     public string Name { get; set; } = "";
     public int CapacityHoursPerWeek { get; set; } = 40;
     public string[] Skills { get; set; } = Array.Empty<string>();
-    public string Color { get; set; } = "#6b7280"; // gray
+    public string Color { get; set; } = "#6b7280";
 }
 
 public record Bank
@@ -51,6 +90,7 @@ public record Project
     public int BankId { get; set; }
     [JsonIgnore] public Bank? Bank { get; set; }
     public string? Color { get; set; }
+    public DateTime? Deadline { get; set; }
 }
 
 public enum TaskStatus { Backlog, Planned, InProgress, Blocked, Done }
@@ -62,11 +102,14 @@ public record TaskItem
     [JsonIgnore] public Project? Project { get; set; }
     public string Title { get; set; } = "";
     public int EstimatedDays { get; set; } = 5;
-    public DateTime StartDate { get; set; }
-    public int DurationDays { get; set; } = 5; // may differ from estimate
+    public DateTime StartDate { get; set; }  // UTC
+    public int DurationDays { get; set; } = 5;
     public TaskStatus Status { get; set; } = TaskStatus.Planned;
     public bool IsMilestone { get; set; } = false;
     public string[] RequiredSkills { get; set; } = Array.Empty<string>();
+    public int? OptimisticDays { get; set; }
+    public int? MostLikelyDays { get; set; }
+    public int? PessimisticDays { get; set; }
 }
 
 public record TaskAssignment
@@ -76,7 +119,7 @@ public record TaskAssignment
     [JsonIgnore] public TaskItem? Task { get; set; }
     public int PersonId { get; set; }
     [JsonIgnore] public Person? Person { get; set; }
-    public int SharePercent { get; set; } = 100; // if multiple devs, sum near 100
+    public int SharePercent { get; set; } = 100;
     public bool IsPrimary { get; set; } = true;
 }
 
@@ -95,5 +138,11 @@ public record ProjectMilestone
     public int ProjectId { get; set; }
     [JsonIgnore] public Project? Project { get; set; }
     public string Name { get; set; } = "";
-    public DateTime Date { get; set; }
+    public DateTime Date { get; set; } // UTC
 }
+
+public record PersonTimeOff { public int Id { get; set; } public int PersonId { get; set; } public DateTime Date { get; set; } public int Hours { get; set; } = 8; }
+public record Holiday { public int Id { get; set; } public DateTime Date { get; set; } public string Name { get; set; } = ""; public string Region { get; set; } = "default"; }
+
+public record Scenario { public int Id { get; set; } public string Name { get; set; } = ""; public DateTime CreatedAt { get; set; } = DateTime.UtcNow; }
+public record ScenarioTaskOverride { public int Id { get; set; } public int ScenarioId { get; set; } public int TaskId { get; set; } public DateTime? StartDate { get; set; } public int? DurationDays { get; set; } public int? PrimaryPersonId { get; set; } }

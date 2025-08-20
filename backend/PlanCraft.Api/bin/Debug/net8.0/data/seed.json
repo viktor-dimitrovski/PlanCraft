@@ -15,7 +15,8 @@
       "Color": "#10b981",
       "Skills": [
         "dotnet",
-        "sql"
+        "sql",
+        "api"
       ]
     },
     {
@@ -42,29 +43,31 @@
       "Color": "#06b6d4",
       "Skills": [
         "api",
-        "etl"
+        "etl",
+        "sql"
       ]
     }
   ],
   "Banks": [
     {
-      "Name": "API",
+      "Name": "Alpha Bank",
       "Color": "#2563eb"
     },
     {
-      "Name": "Sparkasse",
+      "Name": "Beta Bank",
       "Color": "#22c55e"
     },
     {
-      "Name": "Srpska",
+      "Name": "Gamma Bank",
       "Color": "#f97316"
     }
   ],
   "Projects": [
     {
-      "Name": "Mira",
+      "Name": "Alpha PSD2",
       "BankId": 1,
-      "Color": "#3b82f6"
+      "Color": "#3b82f6",
+      "Deadline": "2025-11-16T00:00:00+00:00"
     },
     {
       "Name": "Alpha Premium APIs",
@@ -72,7 +75,8 @@
     },
     {
       "Name": "Beta PIS",
-      "BankId": 2
+      "BankId": 2,
+      "Deadline": "2025-12-16T00:00:00+00:00"
     },
     {
       "Name": "Gamma AISP",
@@ -83,12 +87,12 @@
     {
       "ProjectId": 1,
       "Name": "Sandbox Live",
-      "Date": "2025-09-08"
+      "Date": "2025-09-08T00:00:00+00:00"
     },
     {
       "ProjectId": 3,
       "Name": "Go-Live",
-      "Date": "2025-10-20"
+      "Date": "2025-11-10T00:00:00+00:00"
     }
   ],
   "Tasks": [
@@ -96,61 +100,76 @@
       "ProjectId": 1,
       "Title": "Gateway & mTLS setup",
       "EstimatedDays": 10,
-      "StartDate": "2025-08-18",
+      "StartDate": "2025-08-18T00:00:00+00:00",
       "DurationDays": 10,
       "Status": 2,
       "RequiredSkills": [
         "dotnet",
         "api"
-      ]
+      ],
+      "OptimisticDays": 8,
+      "MostLikelyDays": 10,
+      "PessimisticDays": 14
     },
     {
       "ProjectId": 1,
       "Title": "AIS flows (redirect)",
       "EstimatedDays": 15,
-      "StartDate": "2025-08-25",
+      "StartDate": "2025-08-25T00:00:00+00:00",
       "DurationDays": 15,
       "Status": 1,
       "RequiredSkills": [
         "react",
         "api"
-      ]
+      ],
+      "OptimisticDays": 12,
+      "MostLikelyDays": 15,
+      "PessimisticDays": 20
     },
     {
       "ProjectId": 3,
       "Title": "PIS flows (decoupled)",
       "EstimatedDays": 20,
-      "StartDate": "2025-08-18",
+      "StartDate": "2025-08-18T00:00:00+00:00",
       "DurationDays": 20,
       "Status": 1,
       "RequiredSkills": [
         "dotnet",
         "api"
-      ]
+      ],
+      "OptimisticDays": 16,
+      "MostLikelyDays": 20,
+      "PessimisticDays": 28
     },
     {
       "ProjectId": 4,
       "Title": "Consent UI revamp",
       "EstimatedDays": 12,
-      "StartDate": "2025-09-01",
+      "StartDate": "2025-09-01T00:00:00+00:00",
       "DurationDays": 12,
       "Status": 1,
       "RequiredSkills": [
         "react",
         "design"
-      ]
+      ],
+      "OptimisticDays": 10,
+      "MostLikelyDays": 12,
+      "PessimisticDays": 18
     },
     {
       "ProjectId": 2,
       "Title": "Fraud hooks + TRA",
       "EstimatedDays": 18,
-      "StartDate": "2025-09-15",
+      "StartDate": "2025-09-15T00:00:00+00:00",
       "DurationDays": 18,
       "Status": 0,
       "RequiredSkills": [
         "dotnet",
         "sql"
-      ]
+      ],
+      "OptimisticDays": 14,
+      "MostLikelyDays": 18,
+      "PessimisticDays": 26
     }
   ],
   "TaskAssignments": [
@@ -195,6 +214,25 @@
     {
       "TaskId": 2,
       "DependsOnTaskId": 1
+    }
+  ],
+  "TimeOffs": [
+    {
+      "PersonId": 2,
+      "Date": "2025-08-27T00:00:00+00:00",
+      "Hours": 8
+    },
+    {
+      "PersonId": 1,
+      "Date": "2025-09-03T00:00:00+00:00",
+      "Hours": 8
+    }
+  ],
+  "Holidays": [
+    {
+      "Date": "2025-09-01T00:00:00+00:00",
+      "Name": "Bank Holiday",
+      "Region": "default"
     }
   ]
 }

@@ -18,7 +18,7 @@ function WeekHeader({ weeks, milestones }){
   )
 }
 
-function PersonRow({ person, weeks, onDropCell, onDropTask, onTaskClick }){
+function PersonRow({ person, weeks, onDropCell, onDropTask, onTaskClick, onCreateTask }){
   return (
     <div className="row">
       <div className="personCell">
@@ -28,15 +28,15 @@ function PersonRow({ person, weeks, onDropCell, onDropTask, onTaskClick }){
           <div style={{fontSize:12, color:'#64748b'}}>{person.capacityHoursPerWeek} h/w</div>
         </div>
       </div>
-      <RowGrid person={person} weeks={weeks} onDropCell={onDropCell} onDropTask={onDropTask} onTaskClick={onTaskClick} />
+      <RowGrid person={person} weeks={weeks} onDropCell={onDropCell} onDropTask={onDropTask} onTaskClick={onTaskClick} onCreateTask={onCreateTask} />
     </div>
   )
 }
 
-function RowGrid({ person, weeks, onDropCell, onDropTask, onTaskClick }){
+function RowGrid({ person, weeks, onDropCell, onDropTask, onTaskClick, onCreateTask }){
   return (
     <div className="rowGrid" style={{ gridTemplateColumns: `repeat(${weeks.length}, 1fr)`}}>
-      {weeks.map(w => <Cell key={w.index} person={person} week={w} onDropCell={onDropCell} util={person.weeklyUtilization[w.index]} />)}
+      {weeks.map(w => <Cell key={w.index} person={person} week={w} onDropCell={onDropCell} onCreateTask={onCreateTask} util={person.weeklyUtilization[w.index]} />)}
       {person.tasks.map(t => (
         <Task key={t.id} task={t} startIdx={t.weekIndex} span={t.weekSpan} onDropTask={onDropTask} onClick={onTaskClick} />
       ))}
@@ -44,12 +44,17 @@ function RowGrid({ person, weeks, onDropCell, onDropTask, onTaskClick }){
   )
 }
 
-function Cell({ person, week, onDropCell, util }){
+function Cell({ person, week, onDropCell, onCreateTask, util }){
   const id = `cell:${person.id}:${week.index}`
   const { isOver, setNodeRef } = useDroppable({ id, data: { personId: person.id, weekIndex: week.index }})
   const utilColor = util<0.7? 'linear-gradient(90deg, #86efac, #22c55e)': util<1.0? 'linear-gradient(90deg, #fde68a, #f59e0b)': 'linear-gradient(90deg, #fecaca, #ef4444)'
+  const onDbl = () => {
+    const title = prompt('Create task title')
+    if (!title) return
+    onCreateTask(person.id, week.index, title)
+  }
   return (
-    <div ref={setNodeRef} className="cell" style={{ background: isOver? 'rgba(59,130,246,.06)' : 'white' }}>
+    <div ref={setNodeRef} className="cell" onDoubleClick={onDbl} style={{ background: isOver? 'rgba(59,130,246,.06)' : 'white' }}>
       <div className="utilBar" style={{ background: utilColor, opacity: .45 }}></div>
       <div className="utilLabel">{Math.round(util*100)}%</div>
     </div>
@@ -66,14 +71,40 @@ function Task({ task, startIdx, span, onDropTask, onClick }){
     opacity: isDragging? .8 : 1
   }
   const [hover, setHover] = React.useState(false)
+
+  const onMouseDown = (e) => {
+    e.stopPropagation()
+    const startX = e.clientX
+    const startSpan = span
+    const onMove = (ev) => {
+      const dx = ev.clientX - startX
+      const cellW = (e.currentTarget.parentElement?.clientWidth || 1000) / (document.querySelectorAll('.weekCell').length || 12)
+      const deltaCols = Math.round(dx / cellW)
+      const newSpan = Math.max(1, startSpan + deltaCols)
+      e.currentTarget.style.gridColumn = `${startIdx+1} / span ${newSpan}`
+    }
+    const onUp = (ev) => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      const dx = ev.clientX - startX
+      const cellW = (e.currentTarget.parentElement?.clientWidth || 1000) / (document.querySelectorAll('.weekCell').length || 12)
+      const deltaCols = Math.round(dx / cellW)
+      const newSpan = Math.max(1, startSpan + deltaCols)
+      onDropTask(task, task.assignments.find(a=>a.isPrimary)?.personId, startIdx, newSpan, ev.ctrlKey || ev.altKey, true)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
+
   return (
-    <div className="task" ref={setNodeRef} style={style} {...listeners} {...attributes}
+    <div className={`task ${task.isCritical? 'critOutline':''} ${task.blocked? 'blockOutline':''}`} ref={setNodeRef} style={style} {...listeners} {...attributes}
          onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onClick={()=>onClick && onClick(task)}>
       <div className="assignmentStripes">
         {task.assignments.map(a => <div key={a.personId} style={{ width: `${a.sharePercent}%`, background: 'black' }} />)}
       </div>
       <span className="taskName" title={task.title}>{task.title}</span>
-      <span className="taskTag">{task.projectName}</span>
+      <span className="taskTag">{task.projectName}{task.slackDays===0? ' • CP' : ''}</span>
+      <div className="resizeHandle" onMouseDown={onMouseDown} title="Drag to resize (change duration). Ctrl/Alt+release to copy"></div>
       {hover && <TaskTooltip task={task} />}
     </div>
   )
@@ -83,29 +114,31 @@ function TaskTooltip({ task }){
   return (
     <div className="tooltip" style={{ top: -46, right: 0 }}>
       <div style={{fontWeight:600, marginBottom:4}}>Dependencies</div>
-      {(task.dependencyIds?.length||0)===0 && <div style={{fontSize:12, color:'#64748b'}}>None</div>}
-      {(task.dependencyIds||[]).map(id => (
-        <div key={id} style={{fontSize:12}}>Depends on Task #{id}</div>
+      {(task.dependencies?.length||0)===0 && <div style={{fontSize:12, color:'#64748b'}}>None</div>}
+      {(task.dependencies||[]).map(d => (
+        <div key={d.id} style={{fontSize:12}}>Depends on <b>{d.title}</b> ({d.projectName})</div>
       ))}
+      {task.blocked && <div style={{marginTop:6, color:'#b45309'}}>⚠ Blocked by unmet predecessor</div>}
     </div>
   )
 }
 
-export default function Grid({ weeks, people, milestones, onCellDrop, onTaskMove, onTaskClick }){
+export default function Grid({ weeks, people, milestones, onCellDrop, onTaskMove, onTaskClick, onCreateTask }){
   const handleDragEnd = (e) => {
     const { active, over } = e
     if (!over) return
     const data = active.data.current
     if (active.id.startsWith('task:') && over.id.startsWith('cell:')){
       const [, personIdStr, weekIdxStr] = over.id.split(':')
-      onTaskMove(data.task, parseInt(personIdStr,10), parseInt(weekIdxStr,10))
+      const copy = e?.activatorEvent?.altKey || e?.activatorEvent?.ctrlKey
+      onTaskMove(data.task, parseInt(personIdStr,10), parseInt(weekIdxStr,10), undefined, copy, false)
     }
   }
   return (
     <div className="grid">
       <WeekHeader weeks={weeks} milestones={milestones} />
       <DndContext onDragEnd={handleDragEnd}>
-        {people.map(p => <PersonRow key={p.id} person={p} weeks={weeks} onDropCell={()=>{}} onDropTask={onTaskMove} onTaskClick={onTaskClick} />)}
+        {people.map(p => <PersonRow key={p.id} person={p} weeks={weeks} onDropCell={()=>{}} onDropTask={onTaskMove} onTaskClick={onTaskClick} onCreateTask={onCreateTask} />)}
       </DndContext>
     </div>
   )
