@@ -1,5 +1,6 @@
 import React from 'react'
 import { DndContext, useDroppable, useDraggable } from '@dnd-kit/core'
+import { planPhase } from '../lib/api' 
 
 function WeekHeader({ weeks, milestones }){
   return (
@@ -124,10 +125,25 @@ function TaskTooltip({ task }){
 }
 
 export default function Grid({ weeks, people, milestones, onCellDrop, onTaskMove, onTaskClick, onCreateTask }){
-  const handleDragEnd = (e) => {
+  const handleDragEnd = async (e) => {
     const { active, over } = e
     if (!over) return
     const data = active.data.current
+    // Phase dropped onto a cell? Create a Task from phase:
+    if (active.id.startsWith('phase:') && over.id.startsWith('cell:')){
+      const [, personIdStr, weekIdxStr] = over.id.split(':')
+      const personId = parseInt(personIdStr, 10)
+      const weekIndex = parseInt(weekIdxStr, 10)
+      const w = weeks[weekIndex]; if(!w) return
+      const phaseId = parseInt(active.id.split(':')[1], 10)
+      await planPhase(phaseId, { personId, startDateUtc: w.start, requiredSkills: [] })
+      // After creating the new task, trigger reload via parent callback (reuse your existing refresh)
+      // Easiest path: dispatch a custom event parent listens for, or expose a refresh prop.
+      window.dispatchEvent(new Event('plancraft:refresh'))
+      return
+    }
+
+    // Existing task moved
     if (active.id.startsWith('task:') && over.id.startsWith('cell:')){
       const [, personIdStr, weekIdxStr] = over.id.split(':')
       const copy = e?.activatorEvent?.altKey || e?.activatorEvent?.ctrlKey

@@ -64,7 +64,21 @@ public class PlanCraftDb : DbContext
             v => DateTime.SpecifyKind(v, DateTimeKind.Utc),
             v => DateTime.SpecifyKind(v, DateTimeKind.Utc)
         );
+
+        b.Entity<ProjectPhase>()
+      .HasOne(pp => pp.Project)
+      .WithMany(p => p.Phases!)
+      .HasForeignKey(pp => pp.ProjectId)
+      .OnDelete(DeleteBehavior.Cascade);
+
+        b.Entity<TaskItem>()
+          .HasOne(t => t.Phase)
+          .WithMany()                // tasks “reference” phases; phases don’t track tasks
+          .HasForeignKey(t => t.PhaseId)
+          .OnDelete(DeleteBehavior.SetNull);
     }
+
+    public DbSet<ProjectPhase> ProjectPhases => Set<ProjectPhase>();
 }
 
 public record Person
@@ -91,6 +105,9 @@ public record Project
     [JsonIgnore] public Bank? Bank { get; set; }
     public string? Color { get; set; }
     public DateTime? Deadline { get; set; }
+
+    // NEW
+    public List<ProjectPhase> Phases { get; set; } = new();
 }
 
 public enum TaskStatus { Backlog, Planned, InProgress, Blocked, Done }
@@ -99,10 +116,10 @@ public record TaskItem
 {
     public int Id { get; set; }
     public int ProjectId { get; set; }
-    [JsonIgnore] public Project? Project { get; set; }
+    public Project? Project { get; set; }
     public string Title { get; set; } = "";
     public int EstimatedDays { get; set; } = 5;
-    public DateTime StartDate { get; set; }  // UTC
+    public DateTime StartDate { get; set; }
     public int DurationDays { get; set; } = 5;
     public TaskStatus Status { get; set; } = TaskStatus.Planned;
     public bool IsMilestone { get; set; } = false;
@@ -110,6 +127,10 @@ public record TaskItem
     public int? OptimisticDays { get; set; }
     public int? MostLikelyDays { get; set; }
     public int? PessimisticDays { get; set; }
+
+    // NEW
+    public int? PhaseId { get; set; }
+    public ProjectPhase? Phase { get; set; }
 }
 
 public record TaskAssignment
@@ -146,3 +167,14 @@ public record Holiday { public int Id { get; set; } public DateTime Date { get; 
 
 public record Scenario { public int Id { get; set; } public string Name { get; set; } = ""; public DateTime CreatedAt { get; set; } = DateTime.UtcNow; }
 public record ScenarioTaskOverride { public int Id { get; set; } public int ScenarioId { get; set; } public int TaskId { get; set; } public DateTime? StartDate { get; set; } public int? DurationDays { get; set; } public int? PrimaryPersonId { get; set; } }
+// Add near other records
+public record ProjectPhase
+{
+    public int Id { get; set; }
+    public int ProjectId { get; set; }
+    public Project? Project { get; set; }
+    public string Title { get; set; } = "";
+    public int EstimatedDays { get; set; } = 5;
+}
+
+

@@ -250,7 +250,86 @@ api.MapGet("/plan/forecast", async(PlanCraftDb db, int projectId, int trials = 2
     return Results.Ok(new { P50=p50, P90=p90, Trials=trials });
 });
 
+api.MapGet("/banks", async (PlanCraftDb db) => await db.Banks.OrderBy(b => b.Name).ToListAsync());
+api.MapPost("/banks", async (PlanCraftDb db, Bank b) => { db.Banks.Add(b); await db.SaveChangesAsync(); return Results.Created($"/api/banks/{b.Id}", b); });
+api.MapPut("/banks/{id:int}", async (PlanCraftDb db, int id, Bank b) => { b.Id = id; db.Update(b); await db.SaveChangesAsync(); return Results.NoContent(); });
+api.MapDelete("/banks/{id:int}", async (PlanCraftDb db, int id) => { var b = await db.Banks.FindAsync(id); if (b is null) return Results.NotFound(); db.Remove(b); await db.SaveChangesAsync(); return Results.NoContent(); });
+
+api.MapPost("/people", async (PlanCraftDb db, Person p) => { db.People.Add(p); await db.SaveChangesAsync(); return Results.Created($"/api/people/{p.Id}", p); });
+api.MapPut("/people/{id:int}", async (PlanCraftDb db, int id, Person p) => { p.Id = id; db.Update(p); await db.SaveChangesAsync(); return Results.NoContent(); });
+api.MapDelete("/people/{id:int}", async (PlanCraftDb db, int id) => { var p = await db.People.FindAsync(id); if (p is null) return Results.NotFound(); db.Remove(p); await db.SaveChangesAsync(); return Results.NoContent(); });
+
+// Projects CRUD (BankId required)
+api.MapPost("/projects", async (PlanCraftDb db, Project p) => { db.Projects.Add(p); await db.SaveChangesAsync(); return Results.Created($"/api/projects/{p.Id}", p); });
+api.MapPut("/projects/{id:int}", async (PlanCraftDb db, int id, Project p) => { p.Id = id; db.Update(p); await db.SaveChangesAsync(); return Results.NoContent(); });
+api.MapDelete("/projects/{id:int}", async (PlanCraftDb db, int id) => { var p = await db.Projects.FindAsync(id); if (p is null) return Results.NotFound(); db.Remove(p); await db.SaveChangesAsync(); return Results.NoContent(); });
+
+// Phases CRUD
+api.MapGet("/projects/{projectId:int}/phases", async (PlanCraftDb db, int projectId) =>
+    await db.ProjectPhases.Where(x => x.ProjectId == projectId).OrderBy(x => x.Id).ToListAsync());
+
+api.MapPost("/projects/{projectId:int}/phases", async (PlanCraftDb db, int projectId, ProjectPhase ph) =>
+{
+    ph.ProjectId = projectId;
+    db.ProjectPhases.Add(ph);
+    await db.SaveChangesAsync();
+    return Results.Created($"/api/projects/{projectId}/phases/{ph.Id}", ph);
+});
+
+api.MapPut("/phases/{id:int}", async (PlanCraftDb db, int id, ProjectPhase ph) =>
+{
+    ph.Id = id;
+    db.Update(ph);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+api.MapDelete("/phases/{id:int}", async (PlanCraftDb db, int id) =>
+{
+    var ph = await db.ProjectPhases.FindAsync(id);
+    if (ph is null) return Results.NotFound();
+    db.ProjectPhases.Remove(ph);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+// “Plan phase”: turn a phase into a scheduled task (drop onto grid)
+api.MapPost("/phases/{id:int}/plan", async (PlanCraftDb db, int id, PlanPhaseReq req) =>
+{
+    var phase = await db.ProjectPhases.Include(p => p.Project).ThenInclude(pr => pr!.Bank).FirstOrDefaultAsync(p => p.Id == id);
+    if (phase is null) return Results.NotFound();
+
+    var t = new TaskItem
+    {
+        ProjectId = phase.ProjectId,
+        PhaseId = phase.Id,
+        Title = phase.Title,
+        EstimatedDays = phase.EstimatedDays,
+        DurationDays = Math.Max(1, phase.EstimatedDays),
+        StartDate = DateTime.SpecifyKind(req.StartDateUtc, DateTimeKind.Utc),
+        Status = PlanCraft.Api.TaskStatus.Planned,
+        RequiredSkills = req.RequiredSkills ?? Array.Empty<string>()
+    };
+    db.Tasks.Add(t);
+    await db.SaveChangesAsync();
+
+    // Primary assignment (the employee you dropped on)
+    db.TaskAssignments.Add(new TaskAssignment
+    {
+        TaskId = t.Id,
+        PersonId = req.PersonId,
+        SharePercent = 100,
+        IsPrimary = true
+    });
+    await db.SaveChangesAsync();
+
+    return Results.Ok(t);
+});
+
 app.Run();
+
+
+public record PlanPhaseReq(int PersonId, DateTime StartDateUtc, string[]? RequiredSkills);
 
 public record MoveReq(int TaskId, DateTime? NewStartDate, int? NewPrimaryPersonId, int? NewDurationDays, bool Copy);
 public record BalanceReq(DateTime From, DateTime To, double TargetLoad = 0.85);

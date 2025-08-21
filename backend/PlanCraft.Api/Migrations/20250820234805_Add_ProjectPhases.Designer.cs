@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PlanCraft.Api;
@@ -11,9 +12,11 @@ using PlanCraft.Api;
 namespace PlanCraft.Api.Migrations
 {
     [DbContext(typeof(PlanCraftDb))]
-    partial class PlanCraftDbModelSnapshot : ModelSnapshot
+    [Migration("20250820234805_Add_ProjectPhases")]
+    partial class Add_ProjectPhases
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

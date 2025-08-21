@@ -1,3 +1,4 @@
+// frontend/plancraft-ui/src/lib/api.js
 const BASE = (import.meta.env.VITE_API_BASE) || 'http://localhost:5058/api';
 
 async function request(path, options = {}) {
@@ -6,7 +7,7 @@ async function request(path, options = {}) {
     ...options,
   });
   if (!res.ok) {
-    const text = await res.text().catch(()=>''); 
+    const text = await res.text().catch(()=> ''); 
     throw new Error(`HTTP ${res.status} ${res.statusText}: ${text}`);
   }
   const ct = res.headers.get('content-type') || '';
@@ -36,3 +37,13 @@ export async function compareScenario(sid){ return apiGet(`plan/compare?scenario
 export async function forecast(projectId){ return apiGet(`plan/forecast?projectId=${projectId}`); }
 export async function apiCreateTask(task){ return apiPost('tasks', task); }
 export async function apiCreateAssignment(a){ return apiPost('assignments', a); }
+
+// NEW: add this
+export const fetchBanks    = () => apiGet('banks');
+
+export const createBank    = (b) => apiPost('banks', b);
+export const createPerson  = (p) => apiPost('people', p);
+export const createProject = (p) => apiPost('projects', p);
+export const getPhases     = (projectId) => apiGet(`projects/${projectId}/phases`);
+export const addPhase      = (projectId, phase) => apiPost(`projects/${projectId}/phases`, phase);
+export const planPhase     = (phaseId, payload) => apiPost(`phases/${phaseId}/plan`, payload);
