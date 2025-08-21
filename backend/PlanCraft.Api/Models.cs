@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using System.Reflection.Emit;
 using System.Text.Json.Serialization;
 
 namespace PlanCraft.Api;
@@ -35,6 +36,12 @@ public class PlanCraftDb : DbContext
                 }
             }
         }
+
+        b.Entity<TaskAssignment>()
+        .HasOne(a => a.Task)      // adjust property names
+        .WithMany() //t => t.Assignments
+        .HasForeignKey(a => a.TaskId)
+        .OnDelete(DeleteBehavior.Cascade);
 
 
         b.Entity<Person>().HasIndex(p => p.Name).IsUnique();

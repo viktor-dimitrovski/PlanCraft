@@ -1,161 +1,313 @@
-import React from 'react'
-import { DndContext, useDroppable, useDraggable } from '@dnd-kit/core'
-import { planPhase } from '../lib/api' 
+import React, { useMemo } from "react";
+import { useDroppable, useDraggable } from "@dnd-kit/core";
 
-function WeekHeader({ weeks, milestones }){
+/* ---------- small helpers (kept minimal & compatible) ---------- */
+const parseISO = v => (v ? new Date(v) : null);
+
+const inWeek = (iso, w) => {
+  const d = parseISO(iso); if (!d) return false;
+  const a = parseISO(w.start); if (!a) return false;
+  const b = w.end ? parseISO(w.end) : new Date(a.getTime() + 7*24*3600*1000);
+  return d >= a && d < b;
+};
+
+const getStartField = t =>
+  t.startDate || t.start || t.startUtc ||
+  t.StartDate || t.Start || t.StartUtc ||
+  t?.schedule?.start || t?.Schedule?.Start;
+
+function normalizeTasks(person){
+  if (Array.isArray(person.tasks) && person.tasks.length) return person.tasks;
+
+  // fallback shape: person.assignments[].task
+  if (Array.isArray(person.assignments) && person.assignments.length){
+    return person.assignments.map(a => {
+      const task = a.task || a.Task || {};
+      return {
+        id: task.id ?? a.taskId ?? a.id,
+        title: task.title ?? a.title ?? "Task",
+        projectColor: task.projectColor ?? task.ProjectColor,
+        startDate: getStartField(task) || getStartField(a),
+        weekIndex: task.weekIndex ?? a.weekIndex,
+        weekSpan: task.weekSpan ?? a.weekSpan ?? 1,
+      };
+    }).filter(x => x.id != null);
+  }
+  return [];
+}
+
+const overlaps = (start, end, colStart, colEnd) => (start < colEnd && end > colStart);
+
+/** Count how many tasks overlap each column (week) */
+function columnOverlaps(tasks, columnCount){
+  const counts = Array(columnCount).fill(0);
+  for (const t of tasks){
+    const s = Math.max(0, t.weekIndex ?? 0);
+    const e = Math.min(columnCount, s + Math.max(1, t.weekSpan ?? 1));
+    for (let i = s; i < e; i++) counts[i]++;
+  }
+  return counts;
+}
+
+/** Split timeline into contiguous "busy segments" where at least one task exists. */
+function buildSegments(colCounts){
+  const segs = [];
+  let i = 0;
+  while (i < colCounts.length){
+    if (colCounts[i] === 0){ i++; continue; }
+    const start = i;
+    let maxLane = colCounts[i];
+    while (i < colCounts.length && colCounts[i] > 0){
+      maxLane = Math.max(maxLane, colCounts[i]);
+      i++;
+    }
+    const end = i; // exclusive
+    segs.push({ start, end, laneCount: Math.max(1, maxLane) });
+  }
+  return segs;
+}
+
+/** Greedy pack within a segment (classic interval packing) */
+function packSegment(tasks, seg){
+  const rel = tasks
+    .map(t => {
+      const sAbs = Math.max(0, t.weekIndex ?? 0);
+      const eAbs = sAbs + Math.max(1, t.weekSpan ?? 1);
+      const s = Math.max(seg.start, sAbs);
+      const e = Math.min(seg.end, eAbs);
+      return { ...t, startIndex: s, endIndex: e, span: e - s };
+    })
+    .filter(x => x.span > 0)
+    .sort((a,b)=> (a.startIndex - b.startIndex) || (b.span - a.span) || (a.id - b.id));
+
+  const lanesEnd = []; // absolute column index where each lane ends
+  const placed = [];
+  for (const it of rel){
+    // find first lane that is free for this start
+    let lane = 0;
+    while (lane < lanesEnd.length && lanesEnd[lane] > it.startIndex) lane++;
+    if (lane === lanesEnd.length) lanesEnd.push(it.endIndex);
+    else lanesEnd[lane] = it.endIndex;
+
+    placed.push({ ...it, lane });
+  }
+
+  return { placed, laneCount: Math.max(1, lanesEnd.length) };
+}
+
+/* ------------------- small presentational atoms ------------------- */
+function Cell({ id, util, children }){
+  const { setNodeRef, isOver } = useDroppable({ id });
+  // faint stripe based on utilization (if provided)
+  let stripe = "rgba(59,130,246,.10)";
+  if (typeof util === "number") {
+    if (util < 0.25) stripe = "rgba(239,68,68,.18)";      // under
+    else if (util > 0.95) stripe = "rgba(234,179,8,.16)"; // over
+  }
   return (
-    <div className="headerRow" style={{position:'sticky', top:0, zIndex:5}}>
-      <div style={{padding:'6px 10px', fontSize:12, color:'#64748b'}}>People \\ Weeks</div>
-      <div className="weeks" style={{ gridTemplateColumns: `repeat(${weeks.length}, 1fr)`, position:'relative'}}>
-        {weeks.map(w => <div key={w.index} className="weekCell">{new Date(w.start).toLocaleDateString()}</div>)}
-        {milestones.map((m,i) => {
-          const idx = weeks.findIndex(w => new Date(m.date) >= new Date(w.start) && new Date(m.date) < new Date(w.end))
-          if (idx < 0) return null
-          const left = `calc(${(idx+0.5)/weeks.length*100}% - 4px)`
-          return <div title={`${m.projectName}: ${m.name} (${new Date(m.date).toLocaleDateString()})`} key={i} className="milestone" style={{ position:'absolute', top: 2, left, background: m.color }}></div>
+    <div
+      ref={setNodeRef}
+      className={`cell ${isOver ? "over" : ""}`}
+      style={{ backgroundImage: `linear-gradient(${stripe} 0, ${stripe} 6px, transparent 6px)` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function TaskBar({ task, gridStartCol, gridSpan, yLane, onTaskClick, onRemoveTask }){
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `task:${task.id}`,
+    data: { task }
+  });
+  const color = task.projectColor || "#3b82f6";
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className="taskBar"
+      role="button"
+      aria-roledescription="draggable"
+      title={task.title}
+      style={{
+        gridColumn: `${gridStartCol} / span ${gridSpan}`,
+        gridRow: "1",
+        borderColor: color,
+        opacity: isDragging ? 0.85 : 1,
+        transform: `translateY(calc(var(--lanePad) + var(--laneH) * ${yLane}))`,
+        willChange: isDragging ? "transform, opacity" : "transform"
+      }}
+      onDoubleClick={()=> onTaskClick?.(task)}
+    >
+      <span className="taskDot" style={{ background: color }} />
+      <b className="taskTitle" title={task.title}>{task.title}</b>
+      {gridSpan > 1 && <span className="taskSpan">({gridSpan}w)</span>}
+      <button
+        className="taskX"
+        title="Unschedule (return to backlog)"
+        onClick={(e)=>{ e.stopPropagation(); onRemoveTask?.(task); }}
+        aria-label="Unschedule"
+      >✕</button>
+    </div>
+  );
+}
+
+/* ----------------------------- GRID ------------------------------ */
+export default function Grid({
+  weeks,
+  people,
+  milestones = [],
+  onTaskClick,
+  onCreateTask,
+  onRemoveTask,
+  hideEmpty = true,
+  density = "compact"
+}){
+  const columns = weeks.length;
+
+  const weekLabels = useMemo(
+    () => weeks.map(w => new Date(w.start).toLocaleDateString(undefined, { month:"numeric", day:"numeric" })),
+    [weeks]
+  );
+
+  const densityVars = {
+    compact: { "--laneH": "26px", "--lanePad": "6px" },
+    cozy:    { "--laneH": "32px", "--lanePad": "8px" },
+    roomy:   { "--laneH": "40px", "--lanePad": "10px" },
+  }[density] || {};
+
+  const visiblePeople = useMemo(() => {
+    if (!hideEmpty) return people;
+    return people.filter(p => normalizeTasks(p).some(t =>
+      typeof t.weekIndex === "number"
+        ? t.weekIndex >= 0 && t.weekIndex < columns
+        : weeks.some(w => inWeek(getStartField(t), w))
+    ));
+  }, [people, weeks, columns, hideEmpty]);
+
+  // milestone pins -> header positions (kept as-is, optional)
+  const pins = useMemo(() => {
+    return milestones.map(ms => {
+      const d = parseISO(ms.date); if (!d) return null;
+      const idx = weeks.findIndex(w => {
+        const a = parseISO(w.start);
+        const b = w.end ? parseISO(w.end) : new Date(a.getTime() + 7*24*3600*1000);
+        return d >= a && d < b;
+      });
+      return (idx >= 0) ? { ...ms, weekIndex: idx } : null;
+    }).filter(Boolean);
+  }, [milestones, weeks]);
+
+  return (
+    <div className="plannerGrid" style={densityVars}>
+      {/* header */}
+      <div className="weekHeader" style={{ gridTemplateColumns: `200px repeat(${columns}, 1fr)` }}>
+        <div />
+        {pins.map((ms, i) => (
+          <div key={`ms-${i}`} className="milestonePin" style={{ gridColumn: `${ms.weekIndex + 2} / span 1`, justifySelf:"center" }}>
+            <span style={{ background: ms.color || "#22c55e" }} />
+          </div>
+        ))}
+        {weekLabels.map((d, i) => <div key={i}>{d}</div>)}
+      </div>
+
+      {/* rows */}
+      <div className="rows">
+        {visiblePeople.map(person => {
+          const raw = normalizeTasks(person).filter(t =>
+            (typeof t.weekIndex === "number")
+              ? t.weekIndex >= 0 && t.weekIndex < columns
+              : weeks.some(w => inWeek(getStartField(t), w))
+          );
+
+          // 1) per-column overlaps
+          const colCounts = columnOverlaps(raw, columns);
+
+          // 2) split into contiguous busy segments
+          const segments = buildSegments(colCounts);
+
+          // 3) pack each segment independently & compute Y offsets by stacking segment bands
+          const placedAll = [];
+          let yBase = 0;
+          for (const seg of segments){
+            const segTasks = raw.filter(t => {
+              const s = Math.max(0, t.weekIndex ?? 0);
+              const e = Math.min(columns, s + Math.max(1, t.weekSpan ?? 1));
+              return overlaps(s, e, seg.start, seg.end);
+            });
+
+            const { placed, laneCount } = packSegment(segTasks, seg);
+            for (const it of placed){
+              placedAll.push({
+                id: it.id,
+                title: it.title,
+                color: it.projectColor,
+                startCol: 2 + it.startIndex,
+                span: it.span,
+                yLane: yBase + it.lane
+              });
+            }
+            yBase += laneCount; // next segment starts below previous one
+          }
+
+          const totalLaneCount = Math.max(1, yBase);
+          const util = Array.isArray(person.weeklyUtilization) ? person.weeklyUtilization : [];
+
+          return (
+            <div
+              key={person.id}
+              className="personRow"
+              style={{
+                gridTemplateColumns: `200px repeat(${columns}, 1fr)`,
+                "--laneCount": totalLaneCount,
+                "--weekCount": columns
+              }}
+            >
+              {/* left legend */}
+              <div className="legendCell" role="rowheader" aria-label={`${person.name} ${person.capacityHoursPerWeek||40} hours`}>
+                <span className="legendDot" style={{ background: person.color || "#94a3b8" }} />
+                <div>
+                  <div><b>{person.name}</b></div>
+                  <div className="meta">{person.capacityHoursPerWeek || 40} h/w</div>
+                </div>
+              </div>
+
+              {/* week cells with quick-add */}
+              {weeks.map((w, wi) => (
+                <Cell key={`c:${person.id}:${wi}`} id={`cell:${person.id}:${wi}`} util={util[wi]}>
+                  <div className="quickAdd">
+                    <button
+                      type="button"
+                      title="Quick add"
+                      aria-label="Quick add"
+                      onMouseDown={e=>e.stopPropagation()}
+                      onPointerDown={e=>e.stopPropagation()}
+                      onClick={(e)=>{ e.stopPropagation(); onCreateTask?.(person.id, wi, "New Task"); }}
+                    >＋</button>
+                  </div>
+                </Cell>
+              ))}
+
+              {/* faint horizontal lane guides behind chips */}
+              <div className="laneCanvas" />
+
+              {/* tasks */}
+              {placedAll.map(p => (
+                <TaskBar
+                  key={p.id}
+                  task={p}
+                  gridStartCol={p.startCol}
+                  gridSpan={p.span}
+                  yLane={p.yLane}
+                  onTaskClick={onTaskClick}
+                  onRemoveTask={onRemoveTask}
+                />
+              ))}
+            </div>
+          );
         })}
       </div>
     </div>
-  )
-}
-
-function PersonRow({ person, weeks, onDropCell, onDropTask, onTaskClick, onCreateTask }){
-  return (
-    <div className="row">
-      <div className="personCell">
-        <span className="personDot" style={{background: person.color || '#6b7280'}}></span>
-        <div>
-          <div style={{fontWeight:600}}>{person.name}</div>
-          <div style={{fontSize:12, color:'#64748b'}}>{person.capacityHoursPerWeek} h/w</div>
-        </div>
-      </div>
-      <RowGrid person={person} weeks={weeks} onDropCell={onDropCell} onDropTask={onDropTask} onTaskClick={onTaskClick} onCreateTask={onCreateTask} />
-    </div>
-  )
-}
-
-function RowGrid({ person, weeks, onDropCell, onDropTask, onTaskClick, onCreateTask }){
-  return (
-    <div className="rowGrid" style={{ gridTemplateColumns: `repeat(${weeks.length}, 1fr)`}}>
-      {weeks.map(w => <Cell key={w.index} person={person} week={w} onDropCell={onDropCell} onCreateTask={onCreateTask} util={person.weeklyUtilization[w.index]} />)}
-      {person.tasks.map(t => (
-        <Task key={t.id} task={t} startIdx={t.weekIndex} span={t.weekSpan} onDropTask={onDropTask} onClick={onTaskClick} />
-      ))}
-    </div>
-  )
-}
-
-function Cell({ person, week, onDropCell, onCreateTask, util }){
-  const id = `cell:${person.id}:${week.index}`
-  const { isOver, setNodeRef } = useDroppable({ id, data: { personId: person.id, weekIndex: week.index }})
-  const utilColor = util<0.7? 'linear-gradient(90deg, #86efac, #22c55e)': util<1.0? 'linear-gradient(90deg, #fde68a, #f59e0b)': 'linear-gradient(90deg, #fecaca, #ef4444)'
-  const onDbl = () => {
-    const title = prompt('Create task title')
-    if (!title) return
-    onCreateTask(person.id, week.index, title)
-  }
-  return (
-    <div ref={setNodeRef} className="cell" onDoubleClick={onDbl} style={{ background: isOver? 'rgba(59,130,246,.06)' : 'white' }}>
-      <div className="utilBar" style={{ background: utilColor, opacity: .45 }}></div>
-      <div className="utilLabel">{Math.round(util*100)}%</div>
-    </div>
-  )
-}
-
-function Task({ task, startIdx, span, onDropTask, onClick }){
-  const id = `task:${task.id}`
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id, data: { task }})
-  const style = {
-    gridColumn: `${startIdx+1} / span ${span}`,
-    background: task.projectColor,
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-    opacity: isDragging? .8 : 1
-  }
-  const [hover, setHover] = React.useState(false)
-
-  const onMouseDown = (e) => {
-    e.stopPropagation()
-    const startX = e.clientX
-    const startSpan = span
-    const onMove = (ev) => {
-      const dx = ev.clientX - startX
-      const cellW = (e.currentTarget.parentElement?.clientWidth || 1000) / (document.querySelectorAll('.weekCell').length || 12)
-      const deltaCols = Math.round(dx / cellW)
-      const newSpan = Math.max(1, startSpan + deltaCols)
-      e.currentTarget.style.gridColumn = `${startIdx+1} / span ${newSpan}`
-    }
-    const onUp = (ev) => {
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-      const dx = ev.clientX - startX
-      const cellW = (e.currentTarget.parentElement?.clientWidth || 1000) / (document.querySelectorAll('.weekCell').length || 12)
-      const deltaCols = Math.round(dx / cellW)
-      const newSpan = Math.max(1, startSpan + deltaCols)
-      onDropTask(task, task.assignments.find(a=>a.isPrimary)?.personId, startIdx, newSpan, ev.ctrlKey || ev.altKey, true)
-    }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-  }
-
-  return (
-    <div className={`task ${task.isCritical? 'critOutline':''} ${task.blocked? 'blockOutline':''}`} ref={setNodeRef} style={style} {...listeners} {...attributes}
-         onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} onClick={()=>onClick && onClick(task)}>
-      <div className="assignmentStripes">
-        {task.assignments.map(a => <div key={a.personId} style={{ width: `${a.sharePercent}%`, background: 'black' }} />)}
-      </div>
-      <span className="taskName" title={task.title}>{task.title}</span>
-      <span className="taskTag">{task.projectName}{task.slackDays===0? ' • CP' : ''}</span>
-      <div className="resizeHandle" onMouseDown={onMouseDown} title="Drag to resize (change duration). Ctrl/Alt+release to copy"></div>
-      {hover && <TaskTooltip task={task} />}
-    </div>
-  )
-}
-
-function TaskTooltip({ task }){
-  return (
-    <div className="tooltip" style={{ top: -46, right: 0 }}>
-      <div style={{fontWeight:600, marginBottom:4}}>Dependencies</div>
-      {(task.dependencies?.length||0)===0 && <div style={{fontSize:12, color:'#64748b'}}>None</div>}
-      {(task.dependencies||[]).map(d => (
-        <div key={d.id} style={{fontSize:12}}>Depends on <b>{d.title}</b> ({d.projectName})</div>
-      ))}
-      {task.blocked && <div style={{marginTop:6, color:'#b45309'}}>⚠ Blocked by unmet predecessor</div>}
-    </div>
-  )
-}
-
-export default function Grid({ weeks, people, milestones, onCellDrop, onTaskMove, onTaskClick, onCreateTask }){
-  const handleDragEnd = async (e) => {
-    const { active, over } = e
-    if (!over) return
-    const data = active.data.current
-    // Phase dropped onto a cell? Create a Task from phase:
-    if (active.id.startsWith('phase:') && over.id.startsWith('cell:')){
-      const [, personIdStr, weekIdxStr] = over.id.split(':')
-      const personId = parseInt(personIdStr, 10)
-      const weekIndex = parseInt(weekIdxStr, 10)
-      const w = weeks[weekIndex]; if(!w) return
-      const phaseId = parseInt(active.id.split(':')[1], 10)
-      await planPhase(phaseId, { personId, startDateUtc: w.start, requiredSkills: [] })
-      // After creating the new task, trigger reload via parent callback (reuse your existing refresh)
-      // Easiest path: dispatch a custom event parent listens for, or expose a refresh prop.
-      window.dispatchEvent(new Event('plancraft:refresh'))
-      return
-    }
-
-    // Existing task moved
-    if (active.id.startsWith('task:') && over.id.startsWith('cell:')){
-      const [, personIdStr, weekIdxStr] = over.id.split(':')
-      const copy = e?.activatorEvent?.altKey || e?.activatorEvent?.ctrlKey
-      onTaskMove(data.task, parseInt(personIdStr,10), parseInt(weekIdxStr,10), undefined, copy, false)
-    }
-  }
-  return (
-    <div className="grid">
-      <WeekHeader weeks={weeks} milestones={milestones} />
-      <DndContext onDragEnd={handleDragEnd}>
-        {people.map(p => <PersonRow key={p.id} person={p} weeks={weeks} onDropCell={()=>{}} onDropTask={onTaskMove} onTaskClick={onTaskClick} onCreateTask={onCreateTask} />)}
-      </DndContext>
-    </div>
-  )
+  );
 }

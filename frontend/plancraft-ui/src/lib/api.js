@@ -37,6 +37,8 @@ export async function compareScenario(sid){ return apiGet(`plan/compare?scenario
 export async function forecast(projectId){ return apiGet(`plan/forecast?projectId=${projectId}`); }
 export async function apiCreateTask(task){ return apiPost('tasks', task); }
 export async function apiCreateAssignment(a){ return apiPost('assignments', a); }
+export async function unscheduleTask(taskId){ return apiDelete(`tasks/${taskId}`); }
+export async function unplanPhase(phaseId) { return apiDelete(`phases/${phaseId}/plan`);}
 
 // NEW: add this
 export const fetchBanks    = () => apiGet('banks');

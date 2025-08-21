@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using PlanCraft.Api;
 using Serilog;
 using static PlanCraft.Api.GridModels;
+using System.Text.Json.Serialization;
+
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, lc) => lc.ReadFrom.Configuration(ctx.Configuration).WriteTo.Console());
@@ -19,6 +21,11 @@ builder.Services.AddCors(opt => {
     opt.AddPolicy("ui", p => p
         .WithOrigins("http://localhost:5173","http://127.0.0.1:5173")
         .AllowAnyHeader().AllowAnyMethod());
+});
+builder.Services.ConfigureHttpJsonOptions(o =>
+{
+    o.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    o.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
 });
 
 var app = builder.Build();
@@ -39,7 +46,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PlanCraftDb>();
     db.Database.Migrate();
-    if (!db.People.Any()) Seed.Load(db, Path.Combine(app.Environment.ContentRootPath, "data", "seed.json"));
+    //if (!db.People.Any()) Seed.Load(db, Path.Combine(app.Environment.ContentRootPath, "data", "seed.json"));
 }
 
 var api = app.MapGroup("/api");
@@ -293,11 +300,62 @@ api.MapDelete("/phases/{id:int}", async (PlanCraftDb db, int id) =>
     return Results.NoContent();
 });
 
+api.MapDelete("/phases/{id:int}/plan", async (PlanCraftDb db, int id) =>
+{
+    // If your DbSet is `Tasks`
+    var tasks = await db.Tasks.Where(t => t.PhaseId == id).Select(t => new { t.Id }).ToListAsync();
+
+    // If your DbSet is `TaskItems`, use:
+    // var tasks = await db.TaskItems.Where(t => t.PhaseId == id).Select(t => new { t.Id }).ToListAsync();
+
+    if (tasks.Count == 0) return Results.NoContent();
+
+    var ids = tasks.Select(t => t.Id).ToList();
+
+    db.TaskAssignments.RemoveRange(db.TaskAssignments.Where(a => ids.Contains(a.TaskId)));
+
+    // If DbSet is `Tasks`
+    db.Tasks.RemoveRange(db.Tasks.Where(t => ids.Contains(t.Id)));
+
+    // If DbSet is `TaskItems`, use:
+    // db.TaskItems.RemoveRange(db.TaskItems.Where(t => ids.Contains(t.Id)));
+
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+
+
+api.MapDelete("/tasks/{id:int}", async (PlanCraftDb db, int id) =>
+{
+    // If your DbSet is called `Tasks`
+    var task = await db.Tasks.FirstOrDefaultAsync(t => t.Id == id);
+
+    // If your DbSet is called `TaskItems`, use the next line instead and remove the previous one:
+    // var task = await db.TaskItems.FirstOrDefaultAsync(t => t.Id == id);
+
+    if (task is null) return Results.NotFound();
+
+    // Remove related assignments by FK (no nav property required)
+    db.TaskAssignments.RemoveRange(db.TaskAssignments.Where(a => a.TaskId == id));
+
+    // Remove the task itself
+    db.Remove(task);
+
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+});
+
+
 // “Plan phase”: turn a phase into a scheduled task (drop onto grid)
 api.MapPost("/phases/{id:int}/plan", async (PlanCraftDb db, int id, PlanPhaseReq req) =>
 {
-    var phase = await db.ProjectPhases.Include(p => p.Project).ThenInclude(pr => pr!.Bank).FirstOrDefaultAsync(p => p.Id == id);
-    if (phase is null) return Results.NotFound();
+    var phase = await db.ProjectPhases.FirstOrDefaultAsync(p => p.Id == id);
+    if (phase is null) return Results.NotFound(new { error = "Phase not found" });
+
+    var startUtc = req.StartDateUtc.Kind == DateTimeKind.Utc
+        ? req.StartDateUtc
+        : DateTime.SpecifyKind(req.StartDateUtc, DateTimeKind.Utc);
 
     var t = new TaskItem
     {
@@ -306,14 +364,14 @@ api.MapPost("/phases/{id:int}/plan", async (PlanCraftDb db, int id, PlanPhaseReq
         Title = phase.Title,
         EstimatedDays = phase.EstimatedDays,
         DurationDays = Math.Max(1, phase.EstimatedDays),
-        StartDate = DateTime.SpecifyKind(req.StartDateUtc, DateTimeKind.Utc),
+        StartDate = startUtc,
         Status = PlanCraft.Api.TaskStatus.Planned,
         RequiredSkills = req.RequiredSkills ?? Array.Empty<string>()
     };
+
     db.Tasks.Add(t);
     await db.SaveChangesAsync();
 
-    // Primary assignment (the employee you dropped on)
     db.TaskAssignments.Add(new TaskAssignment
     {
         TaskId = t.Id,
@@ -323,7 +381,8 @@ api.MapPost("/phases/{id:int}/plan", async (PlanCraftDb db, int id, PlanPhaseReq
     });
     await db.SaveChangesAsync();
 
-    return Results.Ok(t);
+    // Return a light DTO to avoid cycles + reduce payload.
+    return Results.Ok(new { id = t.Id, title = t.Title, projectId = t.ProjectId, phaseId = t.PhaseId });
 });
 
 app.Run();
