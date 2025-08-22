@@ -1,285 +1,253 @@
 /* ==========================================================================
-   PlanCraft – Enterprise UI Styles
-   Single-file, organized, minimal CSS for app shell, grid, sidebar, and DnD
+   PlanCraft – Enterprise UI Styles (v2)
+   Clean, high-contrast, bank-ready
    ========================================================================== */
 
-/* ----------------------------------------------------------------------------
+/* --------------------------------------------------------------------------
    0) Base + Variables
-   ------------------------------------------------------------------------- */
+   ----------------------------------------------------------------------- */
 
 :root {
   /* Palette */
-  --bg:            #f3f6fb;
-  --surface:       #ffffff;
-  --panel:         #f8fafc;
-  --stroke:        #e6ebf2;
-  --stroke-strong: #cbd5e1;
-  --muted:         #6b7280;
-  --muted-2:       #94a3b8;
-  --brand:         #2563eb;
-  --ok:            #16a34a;
-  --warn:          #b45309;
-  --danger:        #dc2626;
+  --bg:              #f4f7fb;
+  --surface:         #ffffff;
+  --panel:           #f7f9fc;
+  --stroke:          #e4eaf2;
+  --stroke-strong:   #cbd5e1;
+  --muted:           #667085;
+  --muted-2:         #8a99ad;
+  --brand:           #1d4ed8;     /* primary brand */
+  --brand-600:       #2563eb;
+  --ok:              #16a34a;
+  --warn:            #b45309;
+  --danger:          #dc2626;
+
+  /* Grid */
+  --gridLine:        #d8e2f0;     /* cell border color (visible but subtle) */
+  --cellHover:       rgba(37, 99, 235, .08);
 
   /* Layout */
-  --leftWidth:   320px;    /* JS can override via ResizableSidebar */
-  --rightWidth:  300px;    /* JS can override via ResizableSidebar */
-  --legendW:     200px;    /* first (fixed) column in grid rows */
+  --leftWidth:       320px;
+  --rightWidth:      300px;
+  --legendW:         200px;
 
-  /* Grid lanes */
-  --laneH:       56px;     /* lane height */
-  --laneGap:     10px;     /* vertical space between lanes */
+  /* Lanes */
+  --laneH:           56px;
+  --laneGap:         10px;
+
+  /* Elevation */
+  --shadow-1:        0 1px 2px rgba(2, 6, 23, .05);
+  --shadow-2:        0 4px 14px rgba(2, 6, 23, .10);
 }
 
-*,
-*::before,
-*::after { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; }
 
 html, body, #root { height: 100%; }
+
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   color: #0f172a;
   background: var(--bg);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
 }
 
-/* Utility */
-.muted     { color: var(--muted); }
-.muted-2   { color: var(--muted-2); }
-.badge     { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
-.legendDot { display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 8px; }
+/* Utilities */
+.muted   { color: var(--muted); }
+.muted-2 { color: var(--muted-2); }
+.badge   { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; font-size:12px; }
+.legendDot { display:inline-block; width:10px; height:10px; border-radius:999px; margin-right:8px; }
 
-/* Buttons (minimal) */
-button {
-  appearance: none; border: 1px solid var(--stroke); background: #fff; color: #0f172a;
-  padding: 6px 10px; border-radius: 10px; cursor: pointer;
+/* Buttons */
+button{
+  appearance:none;
+  border:1px solid var(--stroke);
+  background:#fff; color:#0f172a;
+  padding:6px 10px; border-radius:10px; cursor:pointer;
+  box-shadow: var(--shadow-1);
 }
-button:hover { border-color: var(--stroke-strong); background: #fdfefe; }
-button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
-button.primary:hover { filter: brightness(0.96); }
+button:hover{ border-color:var(--stroke-strong); background:#fdfefe; }
+button.primary{ background:var(--brand-600); border-color:var(--brand-600); color:#fff; }
+button.primary:hover{ filter:brightness(.97); }
 
 /* Inputs */
-input[type="text"], input[type="search"], input[type="number"], input[type="date"] {
-  width: 100%; padding: 8px 10px; border: 1px solid var(--stroke); border-radius: 10px; background: #fff; outline: none;
+input[type="text"], input[type="search"], input[type="number"], input[type="date"]{
+  width:100%; padding:8px 10px; border:1px solid var(--stroke); border-radius:10px; background:#fff; outline:none;
+  box-shadow: var(--shadow-1);
 }
-input:focus { border-color: var(--stroke-strong); box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+input:focus{ border-color:var(--stroke-strong); box-shadow:0 0 0 3px rgba(37,99,235,.10); }
 
-/* Links (rare) */
-a { color: var(--brand); text-decoration: none; }
-a:hover { text-decoration: underline; }
+/* Links */
+a{ color:var(--brand-600); text-decoration:none; }
+a:hover{ text-decoration:underline; }
 
-/* ----------------------------------------------------------------------------
-   1) App Shell (topbar + 3-column container)
-   ------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+   1) App Shell
+   ----------------------------------------------------------------------- */
 
-.app { min-height: 100%; display: flex; flex-direction: column; }
+.app{ min-height:100%; display:flex; flex-direction:column; }
 
-.topbar {
-  position: sticky; top: 0; z-index: 40;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 10px 16px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--stroke);
-  box-shadow: 0 1px 2px rgba(2, 6, 23, .03);
+.topbar{
+  position:sticky; top:0; z-index:40;
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding:10px 16px;
+  background:var(--surface);
+  border-bottom:1px solid var(--stroke);
+  box-shadow: var(--shadow-1);
 }
-.topbar .brand { font-weight: 700; letter-spacing: .2px; }
-.topbar .toolbar { display: flex; align-items: center; gap: 8px; }
+.topbar .brand{ font-weight:700; letter-spacing:.2px; }
+.topbar .toolbar{ display:flex; align-items:center; gap:8px; }
 
-.container {
-  display: grid;
-  grid-template-columns: var(--leftWidth, 320px) 1fr var(--rightWidth, 300px);
-  gap: 0;
-  height: calc(100vh - 48px); /* header height approx */
-  overflow: hidden;
+.container{
+  display:grid;
+  grid-template-columns: var(--leftWidth,320px) 1fr var(--rightWidth,300px);
+  height: calc(100vh - 48px);
+  overflow:hidden;
 }
 
-/* ----------------------------------------------------------------------------
-   2) Sidebar (left/right) + Resizer
-   ------------------------------------------------------------------------- */
+/* --------------------------------------------------------------------------
+   2) Sidebars
+   ----------------------------------------------------------------------- */
 
-.sidebar { position: relative; display: flex; flex-direction: column; min-width: 200px; background: transparent; }
-.leftPane__scroll { min-height: 0; overflow: auto; padding: 12px 12px 12px 16px; }
+.sidebar{
+  position:relative;
+  display:flex; flex-direction:column;
+  min-width:200px; background:transparent;
+  border-right:1px solid var(--stroke);
+}
+.sidebar:last-child{ border-right:none; border-left:1px solid var(--stroke); }
 
-.sidebar .resizer {
-  position: absolute; top: 0; bottom: 0; right: 0;
-  width: 6px; cursor: col-resize;
+.leftPane__scroll{ min-height:0; overflow:auto; padding:12px 12px 12px 16px; }
+
+.sidebar .resizer{
+  position:absolute; top:0; bottom:0; right:0; width:6px; cursor:col-resize;
   background: linear-gradient(to right, transparent 0, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px, transparent 4px);
-  user-select: none; touch-action: none;
+  user-select:none; touch-action:none;
 }
 
-/* Sidebar headings & groups */
-.sidebar h3 { margin: 10px 0 8px; font-size: 14px; }
-.bankHead, .projectHead {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 10px; margin: 6px 0;
-  background: #fff; border: 1px solid var(--stroke); border-radius: 10px;
-  transition: background .12s ease, border-color .12s ease;
+/* Sidebar cards */
+.sidebar h3{ margin:10px 0 8px; font-size:14px; }
+
+.bankHead, .projectHead{
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px; margin:6px 0;
+  background:#fff; border:1px solid var(--stroke); border-radius:12px;
+  transition:background .12s ease, border-color .12s ease, box-shadow .12s ease;
+  box-shadow: var(--shadow-1);
 }
-.bankHead:hover, .projectHead:hover { background: var(--panel); border-color: var(--stroke-strong); }
-.badge { background: #eaf0f6; color: #334155; }
+.bankHead:hover, .projectHead:hover{ background:var(--panel); border-color:var(--stroke-strong); box-shadow: var(--shadow-2); }
+.badge{ background:#eaf0f6; color:#334155; }
 
-/* Phase chips (draggables in left dock) */
-.phase-list .phaseChip {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 10px; margin-top: 6px;
-  background: #fff; border: 1px solid var(--stroke); border-radius: 12px;
-  cursor: grab; box-shadow: 0 1px 1px rgba(2,6,23,.03); font-size: 13px;
+/* Phase chips (draggables) */
+.phase-list .phaseChip{
+  display:flex; align-items:center; gap:6px;
+  padding:6px 10px; margin-top:6px;
+  background:#fff; border:1px solid var(--stroke); border-radius:12px;
+  cursor:grab; box-shadow: var(--shadow-1); font-size:13px;
 }
-.phase-list .phaseChip:hover { border-color: var(--stroke-strong); background: #fdfefe; }
-.phase-list .phaseChip:active { cursor: grabbing; }
+.phase-list .phaseChip:hover{ border-color:var(--stroke-strong); background:#fefefe; }
+.phase-list .phaseChip:active{ cursor:grabbing; }
 
-/* ----------------------------------------------------------------------------
-   3) Main Pane + DnD layers
-   ------------------------------------------------------------------------- */
+/* Search row */
+.searchRow{ display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; }
+.searchRow label{ display:inline-flex; align-items:center; gap:8px; color:var(--muted); font-size:13px; }
 
-.main { min-width: 0; overflow: auto; padding: 12px 16px; }
+/* --------------------------------------------------------------------------
+   3) Main Pane + DnD
+   ----------------------------------------------------------------------- */
 
-.dnd-portal, .dnd-overlay { position: relative; z-index: 60; }
+.main{ min-width:0; overflow:auto; padding:12px 16px; }
+.dnd-portal, .dnd-overlay{ position:relative; z-index:60; }
 
-/* ----------------------------------------------------------------------------
+/* --------------------------------------------------------------------------
    4) Grid (timeline, rows, cells, tasks)
-   ------------------------------------------------------------------------- */
+   ----------------------------------------------------------------------- */
 
-.gridRoot { display: grid; grid-template-rows: auto 1fr; gap: 8px; }
+.gridRoot{ display:grid; grid-template-rows:auto 1fr; gap:8px; }
 
-/* Timeline header */
-.timeline {
-  display: grid;
-  grid-template-columns: var(--legendW, 200px) repeat(auto-fit, minmax(0, 1fr));
-  gap: 6px;
-  align-items: end;
+/* Timeline */
+.timeline{
+  display:grid;
+  grid-template-columns: var(--legendW,200px) repeat(auto-fit, minmax(0,1fr));
+  gap:6px; align-items:end;
+  padding-bottom:2px; border-bottom:1px solid var(--stroke);
 }
-.weekHead {
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; color: var(--muted-2); font-weight: 500; letter-spacing: .02em;
-  height: 24px;
-}
-
-/* Rows wrapper */
-.rows { display: flex; flex-direction: column; gap: 10px; }
-
-/* One person row */
-.personRow {
-  position: relative;
-  display: grid;
-  grid-template-columns: var(--legendW, 200px) repeat(auto-fit, minmax(0, 1fr));
-  /* rows (lanes) are set inline by Grid.jsx via gridTemplateRows */
-  gap: 6px;
-  background: var(--surface);
-  border: 1px solid var(--stroke);
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(2,6,23,.04);
-  padding: 8px 6px;
+.weekHead{
+  height:24px; display:flex; align-items:center; justify-content:center;
+  font-size:12px; color:var(--muted-2); font-weight:600; letter-spacing:.02em;
 }
 
-/* Full-width horizontal lane guides */
-.personRow::before {
-  content: "";
-  position: absolute;
-  left: var(--legendW, 200px);
-  right: 0;
-  top: 8px;
-  bottom: 8px;
-  pointer-events: none;
-  background-image:
-    repeating-linear-gradient(
-      to bottom,
-      transparent,
-      transparent calc(var(--laneH) - 1px),
-      #e9eef6 calc(var(--laneH) - 1px),
-      #e9eef6 calc(var(--laneH) + var(--laneGap))
-    );
+/* Rows list */
+.rows{ display:flex; flex-direction:column; gap:12px; }
+
+/* Person row */
+.personRow{
+  position:relative;
+  display:grid;
+  grid-template-columns: var(--legendW,200px) repeat(auto-fit, minmax(0,1fr));
+  gap:6px;
+  background:var(--surface);
+  border:1px solid var(--stroke);
+  border-radius:14px;
+  box-shadow: var(--shadow-1);
+  padding:8px 6px;
+}
+.personRow:hover{ box-shadow: var(--shadow-2); }
+
+/* Person legend */
+.legendCell{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 10px; border-radius:10px; background:transparent;
+}
+.legendCell .meta{ font-size:12px; color:var(--muted-2); }
+
+/* Lane “tiles” (rendered per lane per week in JSX) */
+.cell{
+  height:var(--laneH);
+  background:transparent;
+  border-right:1px solid var(--gridLine);
+  border-bottom:1px solid var(--gridLine);
+  border-radius:8px;
+  z-index:0;
+}
+.cell.decor{ pointer-events:none; }
+.cell.over{
+  background:var(--cellHover);
+  outline:2px solid rgba(37,99,235,.25);
+  outline-offset:-1px;
 }
 
-/* Person legend cell (name + capacity) */
-.legendCell {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: 10px;
-  background: transparent;
+/* Task container & card */
+.taskWrap{ position:relative; height:var(--laneH); display:flex; align-items:center; z-index:1; }
+
+.taskCard{
+  position:relative;
+  border:2px solid var(--brand-600);
+  background:#fff;
+  border-radius:12px;
+  height:36px; display:flex; align-items:center;
+  box-shadow: var(--shadow-1);
+  overflow:hidden;
 }
-.legendCell .meta { font-size: 12px; color: var(--muted-2); }
+.taskCard:hover{ box-shadow: var(--shadow-2); }
+.taskCardInner{ display:flex; align-items:center; gap:6px; padding:0 10px; font-size:13px; }
+.taskCardInner b{ font-weight:600; }
 
-/* Droppable week cell */
-.cell {
-  height: var(--laneH);
-  background: transparent;
-  border-radius: 8px;
+/* Task close (unschedule) */
+.taskX{
+  position:absolute; right:6px; top:6px;
+  width:20px; height:20px; line-height:18px; text-align:center;
+  border-radius:6px; border:1px solid var(--stroke); color:var(--muted);
+  background:#fff; font-weight:700;
 }
-.cell.over {
-  background: rgba(37,99,235,0.08);
-  outline: 2px solid rgba(37,99,235,0.25);
-  outline-offset: -1px;
-}
+.taskX:hover{ border-color:var(--stroke-strong); background:#fefefe; }
 
-/* Task container (placed on grid) */
-.taskWrap { position: relative; height: var(--laneH); display: flex; align-items: center; }
+/* --------------------------------------------------------------------------
+   5) Misc
+   ----------------------------------------------------------------------- */
 
-/* Task visual */
-.taskCard {
-  position: relative;
-  border: 2px solid var(--brand);
-  background: #fff;
-  border-radius: 12px;
-  height: 36px;                /* visual height inside a 56px lane */
-  display: flex; align-items: center;
-  box-shadow: 0 1px 2px rgba(2,6,23,.04);
-  overflow: hidden;
-}
-.taskCard:hover      { box-shadow: 0 4px 14px rgba(2,6,23,.10); }
-.taskCardInner       { display: flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 13px; }
-.taskCardInner b     { font-weight: 600; }
-.taskX {
-  position: absolute; right: 6px; top: 6px;
-  width: 20px; height: 20px; border-radius: 6px;
-  border: 1px solid var(--stroke); color: var(--muted);
-  background: #fff; line-height: 18px; text-align: center; font-weight: 700;
-}
-.taskX:hover { border-color: var(--stroke-strong); background: #fdfefe; }
+hr{ border:0; border-top:1px solid var(--stroke); margin:12px 0; }
+small{ color:var(--muted-2); }
 
-/* ----------------------------------------------------------------------------
-   5) Left Dock / Search row
-   ------------------------------------------------------------------------- */
-
-.searchRow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
-.searchRow label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-
-/* ----------------------------------------------------------------------------
-   6) Minor helpers
-   ------------------------------------------------------------------------- */
-
-hr { border: 0; border-top: 1px solid var(--stroke); margin: 12px 0; }
-small { color: var(--muted-2); }
-
-@media (max-width: 1200px) {
-  :root { --legendW: 180px; }
-}
-@media (max-width: 960px) {
-  :root { --legendW: 160px; }
-}
-
-
-
-
-
-/* --- Lane tiles look like a proper grid --- */
-.personRow::before { content: none; } /* disable old lane-gradient if present */
-
-.cell {
-  height: var(--laneH);
-  background: transparent;
-  /* draw grid lines: right + bottom keeps lines single-pixel without doubling */
-  border-right: 1px solid #e9eef6;
-  border-bottom: 1px solid #e9eef6;
-  border-radius: 6px;
-  z-index: 0;
-}
-
-.cell.decor { pointer-events: none; }  /* decorative tiles never capture events */
-.taskWrap { z-index: 1; }              /* tasks sit above tiles */
-
-/* keep droppable feedback strong on the interactive (lane 0) tiles */
-.cell.over {
-  background: rgba(37,99,235,0.08);
-  outline: 2px solid rgba(37,99,235,0.25);
-  outline-offset: -1px;
-}
+/* Responsive legend width adjustments */
+@media (max-width: 1200px){ :root{ --legendW: 180px; } }
+@media (max-width: 960px) { :root{ --legendW: 160px; } }

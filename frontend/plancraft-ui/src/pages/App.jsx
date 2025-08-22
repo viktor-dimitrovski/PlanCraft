@@ -197,14 +197,25 @@ export default function App () {
       <div className="topbar">
         <div className="brand">PlanCraft</div>
         <div className="toolbar">
-          <button onClick={() => setWhatIf(!whatIf)} className={whatIf ? 'primary' : ''}>
-            {whatIf ? 'What-if ON' : 'What-if OFF'}
+          <button
+            onClick={() => setWhatIf(!whatIf)}
+            className={whatIf ? "primary" : ""}
+          >
+            {whatIf ? "What-if ON" : "What-if OFF"}
           </button>
           <button
             onClick={() =>
-              autobalance(range.from.toISOString(), range.to.toISOString(), 0.85)
-                .then(r => alert((r.proposals || [])
-                  .map(p => `Task ${p.taskId}: ${p.reason}`).join('\n') || 'No proposals'))
+              autobalance(
+                range.from.toISOString(),
+                range.to.toISOString(),
+                0.85
+              ).then((r) =>
+                alert(
+                  (r.proposals || [])
+                    .map((p) => `Task ${p.taskId}: ${p.reason}`)
+                    .join("\n") || "No proposals"
+                )
+              )
             }
           >
             Auto-balance
@@ -213,24 +224,30 @@ export default function App () {
         </div>
       </div>
 
-      <div className="container">
-        <ResizableSidebar side="left" min={280} max={560} initial={320} storageKey="plancraft.leftWidth">
-          <LeftDock
-            projects={projects}
-            hideEmpty={hideEmpty}
-            onReload={refreshGrid}
-            onPlanPhase={planPhase}
-          />
-        </ResizableSidebar>
-
-        <div className="main">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={onDragEnd}
-            measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}   // ⬅️ added
-            autoScroll
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }} // ⬅️ added
+        autoScroll
+      >
+        <div className="container">
+          <ResizableSidebar
+            side="left"
+            min={280}
+            max={560}
+            initial={320}
+            storageKey="plancraft.leftWidth"
           >
+            <LeftDock
+              projects={projects}
+              hideEmpty={hideEmpty}
+              onReload={refreshGrid}
+              onPlanPhase={planPhase}
+            />
+          </ResizableSidebar>
+
+          <div className="main">
             <Grid
               range={range}
               weeks={weeks}
@@ -240,25 +257,31 @@ export default function App () {
               hideEmpty={hideEmpty}
               onCreateTask={onCreateTask}
               onTaskClick={onTaskClick}
-              onUnschedule={onUnschedule}     // ⬅️ added
+              onUnschedule={onUnschedule} // ⬅️ added
             />
-          </DndContext>
-        </div>
+          </div>
 
-        <ResizableSidebar side="right" min={260} max={420} initial={300} storageKey="plancraft.rightWidth">
-          <Legend items={projects || []} />
-          <AssignmentPanel
-            open={panelOpen}
-            task={panelTask}
-            onClose={() => setPanelOpen(false)}
-            onUnschedule={async (taskId) => {
-              await unscheduleTask(taskId)
-              setPanelOpen(false)
-              refreshGrid()
-            }}
-          />
-        </ResizableSidebar>
-      </div>
+          <ResizableSidebar
+            side="right"
+            min={260}
+            max={420}
+            initial={300}
+            storageKey="plancraft.rightWidth"
+          >
+            <Legend items={projects || []} />
+            <AssignmentPanel
+              open={panelOpen}
+              task={panelTask}
+              onClose={() => setPanelOpen(false)}
+              onUnschedule={async (taskId) => {
+                await unscheduleTask(taskId);
+                setPanelOpen(false);
+                refreshGrid();
+              }}
+            />
+          </ResizableSidebar>
+        </div>
+      </DndContext>
     </div>
-  )
+  );
 }
