@@ -66,13 +66,13 @@ coverage/
 # ------------------------------
 # Backend (.NET / ASP.NET Core)
 # ------------------------------
-# Build output
+# Build output (anywhere)
+**/[Bb]in/**
+**/[Oo]bj/**
+
+# (you can keep your existing)
 [Bb]in/
 [Oo]bj/
-# Ignore all obj folders everywhere
-**/obj/
-bin/
-obj/
 
 artifacts/
 TestResults/
