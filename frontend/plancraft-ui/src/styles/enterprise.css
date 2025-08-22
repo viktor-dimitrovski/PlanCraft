@@ -1,139 +1,258 @@
-:root{
-  --laneH: 54px;
-  --laneGap: 6px;
-  --brand: #2563eb;
-  --muted: #6b7280;
-  --gridBorder: #e5e7eb;
+/* ==========================================================================
+   PlanCraft – Enterprise UI Styles
+   Single-file, organized, minimal CSS for app shell, grid, sidebar, and DnD
+   ========================================================================== */
+
+/* ----------------------------------------------------------------------------
+   0) Base + Variables
+   ------------------------------------------------------------------------- */
+
+:root {
+  /* Palette */
+  --bg:            #f3f6fb;
+  --surface:       #ffffff;
+  --panel:         #f8fafc;
+  --stroke:        #e6ebf2;
+  --stroke-strong: #cbd5e1;
+  --muted:         #6b7280;
+  --muted-2:       #94a3b8;
+  --brand:         #2563eb;
+  --ok:            #16a34a;
+  --warn:          #b45309;
+  --danger:        #dc2626;
+
+  /* Layout */
+  --leftWidth:   320px;    /* JS can override via ResizableSidebar */
+  --rightWidth:  300px;    /* JS can override via ResizableSidebar */
+  --legendW:     200px;    /* first (fixed) column in grid rows */
+
+  /* Grid lanes */
+  --laneH:       56px;     /* lane height */
+  --laneGap:     10px;     /* vertical space between lanes */
 }
 
-/* Layout */
-.container{
-  display:grid;
-  grid-template-columns: var(--leftWidth, 360px) 1fr var(--rightWidth, 320px);
-  gap:12px;
-  height:100%;
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color: #0f172a;
+  background: var(--bg);
 }
-.sidebar{ min-width:280px; }
-.main{ min-width:640px; }
-.rightbar{ min-width:280px; }
+
+/* Utility */
+.muted     { color: var(--muted); }
+.muted-2   { color: var(--muted-2); }
+.badge     { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; font-size: 12px; }
+.legendDot { display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 8px; }
+
+/* Buttons (minimal) */
+button {
+  appearance: none; border: 1px solid var(--stroke); background: #fff; color: #0f172a;
+  padding: 6px 10px; border-radius: 10px; cursor: pointer;
+}
+button:hover { border-color: var(--stroke-strong); background: #fdfefe; }
+button.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+button.primary:hover { filter: brightness(0.96); }
+
+/* Inputs */
+input[type="text"], input[type="search"], input[type="number"], input[type="date"] {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--stroke); border-radius: 10px; background: #fff; outline: none;
+}
+input:focus { border-color: var(--stroke-strong); box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
+
+/* Links (rare) */
+a { color: var(--brand); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ----------------------------------------------------------------------------
+   1) App Shell (topbar + 3-column container)
+   ------------------------------------------------------------------------- */
+
+.app { min-height: 100%; display: flex; flex-direction: column; }
+
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--stroke);
+  box-shadow: 0 1px 2px rgba(2, 6, 23, .03);
+}
+.topbar .brand { font-weight: 700; letter-spacing: .2px; }
+.topbar .toolbar { display: flex; align-items: center; gap: 8px; }
+
+.container {
+  display: grid;
+  grid-template-columns: var(--leftWidth, 320px) 1fr var(--rightWidth, 300px);
+  gap: 0;
+  height: calc(100vh - 48px); /* header height approx */
+  overflow: hidden;
+}
+
+/* ----------------------------------------------------------------------------
+   2) Sidebar (left/right) + Resizer
+   ------------------------------------------------------------------------- */
+
+.sidebar { position: relative; display: flex; flex-direction: column; min-width: 200px; background: transparent; }
+.leftPane__scroll { min-height: 0; overflow: auto; padding: 12px 12px 12px 16px; }
+
+.sidebar .resizer {
+  position: absolute; top: 0; bottom: 0; right: 0;
+  width: 6px; cursor: col-resize;
+  background: linear-gradient(to right, transparent 0, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px, transparent 4px);
+  user-select: none; touch-action: none;
+}
+
+/* Sidebar headings & groups */
+.sidebar h3 { margin: 10px 0 8px; font-size: 14px; }
+.bankHead, .projectHead {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; margin: 6px 0;
+  background: #fff; border: 1px solid var(--stroke); border-radius: 10px;
+  transition: background .12s ease, border-color .12s ease;
+}
+.bankHead:hover, .projectHead:hover { background: var(--panel); border-color: var(--stroke-strong); }
+.badge { background: #eaf0f6; color: #334155; }
+
+/* Phase chips (draggables in left dock) */
+.phase-list .phaseChip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; margin-top: 6px;
+  background: #fff; border: 1px solid var(--stroke); border-radius: 12px;
+  cursor: grab; box-shadow: 0 1px 1px rgba(2,6,23,.03); font-size: 13px;
+}
+.phase-list .phaseChip:hover { border-color: var(--stroke-strong); background: #fdfefe; }
+.phase-list .phaseChip:active { cursor: grabbing; }
+
+/* ----------------------------------------------------------------------------
+   3) Main Pane + DnD layers
+   ------------------------------------------------------------------------- */
+
+.main { min-width: 0; overflow: auto; padding: 12px 16px; }
+
+.dnd-portal, .dnd-overlay { position: relative; z-index: 60; }
+
+/* ----------------------------------------------------------------------------
+   4) Grid (timeline, rows, cells, tasks)
+   ------------------------------------------------------------------------- */
+
+.gridRoot { display: grid; grid-template-rows: auto 1fr; gap: 8px; }
 
 /* Timeline header */
-.gridRoot{
-  display:grid;
-  grid-auto-rows: auto;
-  row-gap: 6px;
+.timeline {
+  display: grid;
+  grid-template-columns: var(--legendW, 200px) repeat(auto-fit, minmax(0, 1fr));
+  gap: 6px;
+  align-items: end;
 }
-.timeline{
-  display:grid;
-  align-items:end;
-  user-select:none;
-}
-.weekHead{
-  color:#9ca3af;
-  font-size:12px;
-  padding:0 6px 6px;
-  border-left:1px solid var(--gridBorder);
-}
-.weekHead:first-child{ border-left: none; }
-
-/* Person rows */
-.rows{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
-.personRow{
-  display:grid;
-  position:relative;
-  background:#fff;
-  border:1px solid #eef2f7;
-  border-radius:10px;
-  padding:8px 6px;
-  box-shadow:0 1px 2px rgba(0,0,0,.03);
-  overflow:hidden;
+.weekHead {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--muted-2); font-weight: 500; letter-spacing: .02em;
+  height: 24px;
 }
 
-.legendCell{
-  display:flex; align-items:center; gap:10px;
-  padding-left:6px;
-}
-.legendDot{
-  width:10px; height:10px; border-radius:50%;
-  display:inline-block;
-}
-.meta{ color: var(--muted); font-size:12px; }
+/* Rows wrapper */
+.rows { display: flex; flex-direction: column; gap: 10px; }
 
-/* grid cells – span all lanes to keep drop target large */
-.cell{
-  border-left:1px dashed #e9eef6;
-  border-top:1px solid transparent; /* for even line height */
-  position:relative;
-}
-.cell.over{ background: rgba(37,99,235,0.06); }
-.personRow .cell:first-of-type{ border-left-color: #e9eef6; } /* first week */
-
-.personRow::after{
-  /* bottom border aligned with grid */
-  content:"";
-  position:absolute; left:200px; right:0; bottom:8px;
-  border-bottom:1px solid #f1f5f9;
+/* One person row */
+.personRow {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--legendW, 200px) repeat(auto-fit, minmax(0, 1fr));
+  /* rows (lanes) are set inline by Grid.jsx via gridTemplateRows */
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(2,6,23,.04);
+  padding: 8px 6px;
 }
 
-/* Task visuals */
-.taskWrap{
-  position:relative;
-  padding-top:6px; /* small vertical gap between lanes */
-}
-.taskCard{
-  display:inline-block;
-  border:1.5px solid var(--brand);
-  border-radius:12px;
-  background:#fff;
-  padding:6px 10px;
-  box-shadow:0 1px 2px rgba(0,0,0,.03);
-  pointer-events:auto;
-  transition:box-shadow .12s ease;
-  overflow:hidden;
-}
-.taskCard.dragging{ opacity:.85; box-shadow:0 6px 16px rgba(0,0,0,.18); }
-.taskCardInner{ display:flex; align-items:center; gap:6px; }
-.taskCard b{ font-weight:600; font-size:13px; }
-.taskX{
-  margin-left:8px;
-  border:none; background:#fff; border-radius:999px;
-  width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center;
-  color:#64748b; cursor:pointer;
-}
-.taskX:hover{ background:#f1f5f9; }
-
-/* Backlog pill look (used also for DragOverlay ghost) */
-.taskCard.backlog{ cursor:grab; }
-
-/* Sidebar quick tidy without changing your structure */
-.sidebar .dockTabs{ display:flex; gap:6px; margin-bottom:8px; }
-.sidebar .dockTabs button{
-  padding:6px 10px; border-radius:8px; border:1px solid #e6ebf2; background:#fff; cursor:pointer;
-}
-.sidebar .dockTabs button.active{ background:#0f172a; color:#fff; border-color:#0f172a; }
-.sidebar h3{ margin:8px 0 6px; }
-.sidebar .searchRow{ display:flex; gap:8px; align-items:center; }
-.sidebar .bankHead, .sidebar .projectHead{
-  display:flex; align-items:center; gap:8px; padding:8px 6px; border-radius:8px; background:#fff; border:1px solid #eef2f7;
-}
-.sidebar .badge{ background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:999px; font-size:12px; }
-.sidebar .legendDot{ width:8px; height:8px; }
-.sidebar .primary{ background:#0ea5e9; color:#fff; border:none; border-radius:8px; padding:6px 10px; cursor:pointer; }
-.sidebar .primary:hover{ filter:brightness(0.95); }
-
-/* --- Resizer handle and basic positions --- */
-.sidebar { position: relative; }
-.sidebar .resizer {
+/* Full-width horizontal lane guides */
+.personRow::before {
+  content: "";
   position: absolute;
-  top: 0; bottom: 0;
+  left: var(--legendW, 200px);
   right: 0;
-  width: 6px;
-  cursor: col-resize;
-  background: transparent; /* easy to hit, not visually loud */
+  top: 8px;
+  bottom: 8px;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent,
+      transparent calc(var(--laneH) - 1px),
+      #e9eef6 calc(var(--laneH) - 1px),
+      #e9eef6 calc(var(--laneH) + var(--laneGap))
+    );
 }
-.main { overflow: auto; }
 
+/* Person legend cell (name + capacity) */
+.legendCell {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 10px;
+  background: transparent;
+}
+.legendCell .meta { font-size: 12px; color: var(--muted-2); }
+
+/* Droppable week cell */
+.cell {
+  height: var(--laneH);
+  background: transparent;
+  border-radius: 8px;
+}
+.cell.over {
+  background: rgba(37,99,235,0.08);
+  outline: 2px solid rgba(37,99,235,0.25);
+  outline-offset: -1px;
+}
+
+/* Task container (placed on grid) */
+.taskWrap { position: relative; height: var(--laneH); display: flex; align-items: center; }
+
+/* Task visual */
+.taskCard {
+  position: relative;
+  border: 2px solid var(--brand);
+  background: #fff;
+  border-radius: 12px;
+  height: 36px;                /* visual height inside a 56px lane */
+  display: flex; align-items: center;
+  box-shadow: 0 1px 2px rgba(2,6,23,.04);
+  overflow: hidden;
+}
+.taskCard:hover      { box-shadow: 0 4px 14px rgba(2,6,23,.10); }
+.taskCardInner       { display: flex; align-items: center; gap: 6px; padding: 0 10px; font-size: 13px; }
+.taskCardInner b     { font-weight: 600; }
+.taskX {
+  position: absolute; right: 6px; top: 6px;
+  width: 20px; height: 20px; border-radius: 6px;
+  border: 1px solid var(--stroke); color: var(--muted);
+  background: #fff; line-height: 18px; text-align: center; font-weight: 700;
+}
+.taskX:hover { border-color: var(--stroke-strong); background: #fdfefe; }
+
+/* ----------------------------------------------------------------------------
+   5) Left Dock / Search row
+   ------------------------------------------------------------------------- */
+
+.searchRow { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; }
+.searchRow label { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+
+/* ----------------------------------------------------------------------------
+   6) Minor helpers
+   ------------------------------------------------------------------------- */
+
+hr { border: 0; border-top: 1px solid var(--stroke); margin: 12px 0; }
+small { color: var(--muted-2); }
+
+@media (max-width: 1200px) {
+  :root { --legendW: 180px; }
+}
+@media (max-width: 960px) {
+  :root { --legendW: 160px; }
+}
