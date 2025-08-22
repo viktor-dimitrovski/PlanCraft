@@ -55,7 +55,7 @@ body {
 .muted   { color: var(--muted); }
 .muted-2 { color: var(--muted-2); }
 .badge   { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; font-size:12px; }
-.legendDot { display:inline-block; width:10px; height:10px; border-radius:999px; margin-right:8px; }
+
 
 /* Buttons */
 button{
@@ -279,24 +279,8 @@ small{ color:var(--muted-2); }
 
 
 /* --------------------------------------------------------------------------
-   6) Admin / CRUD
+   6) Left Menu
    ----------------------------------------------------------------------- */
-
-.adminWrap { padding: 16px; display: grid; gap: 16px; }
-.crudCard { background: #fff; border: 1px solid var(--stroke); border-radius: 12px; padding: 12px; box-shadow: 0 1px 1px rgba(2,6,23,.03); }
-.crudCardHead { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:14px; }
-.formRow { display:flex; gap:8px; align-items:center; margin: 8px 0; flex-wrap: wrap; }
-.formRow input, .formRow select { min-width: 160px; }
-.crudTable { width: 100%; border-collapse: collapse; }
-.crudTable th, .crudTable td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--stroke); vertical-align: middle; }
-.crudTable thead th { background: #f8fafc; border-top: none; font-size: 12px; color: #475569; }
-.rowActions { display:flex; gap:6px; }
-.navTabs { display:flex; gap:4px; margin-right: 8px; }
-
-/* Make buttons a bit smaller for tables */
-.crudTable button { padding: 4px 8px; font-size: 12px; }
-
-
 
 /* Collapsible chevron */
 .chev{
@@ -330,4 +314,25 @@ small{ color:var(--muted-2); }
 /* Tasks on the grid inherit a *very* light bank tint (keeps text readable) */
 .taskCard{
   background: color-mix(in srgb, var(--taskColor, var(--accent, var(--brand-600))) 6%, #fff);
+}
+
+/* .legendDot { display:inline-block; width:10px; height:10px; border-radius:999px; margin-right:8px; } */
+.legendDot {
+  width: 10px; height: 10px; border-radius: 999px;
+  background: #fff !important;               /* hollow center */
+  box-shadow: 0 0 0 3px var(--accent, var(--brand-600));  /* colored ring */
+  margin-right: 8px;
+}
+.projectHead .legendDot { display: none; }
+/* .bankHead .legendDot,.projectHead .legendDot { display: none; } */
+
+/* Remove all small color dots (banks, projects, phases) */
+.legendDot { 
+  display: none !important;
+}
+
+/* Optional: tighten spacing now that the dot is gone */
+.bankHead, .projectHead { 
+  gap: 6px;            /* was 8px */
+  padding-left: 12px;  /* keep left padding comfortable */
 }

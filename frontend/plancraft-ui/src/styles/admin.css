@@ -1,0 +1,136 @@
+/* ========================================================================
+   PlanCraft Admin Styles (standalone; complements enterprise.css)
+   Professional, clear, bank-ready UI
+   ===================================================================== */
+
+/* Inherit core tokens from enterprise.css; add admin-specific ones */
+:root {
+  --admin-surface: #ffffff;
+  --admin-bg: #f5f7fb;
+  --admin-stroke: #e6edf5;
+  --admin-stroke-strong: #cfd8e3;
+  --admin-muted: #6b7280;
+  --admin-title: #0f172a;
+  --admin-head-bg: #f8fafc;
+  --admin-zebra: #fbfdff;
+  --admin-shadow-1: 0 1px 2px rgba(2,6,23,.06);
+  --admin-shadow-2: 0 8px 24px rgba(2,6,23,.08);
+}
+
+.adminWrap {
+  padding: 16px;
+  background: var(--admin-bg);
+  min-height: calc(100vh - 48px);
+  display: grid;
+  gap: 16px;
+}
+
+/* Page header */
+.adminHeader {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+  padding: 16px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-stroke);
+  border-radius: 14px;
+  box-shadow: var(--admin-shadow-1);
+}
+.adminTitle { margin: 0 0 6px 0; font-size: 20px; font-weight: 700; color: var(--admin-title); letter-spacing: .2px; }
+.adminSubtitle { margin: 0; color: var(--admin-muted); }
+.adminActions { display: flex; gap: 8px; }
+
+/* Cards */
+.adminCard {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-stroke);
+  border-radius: 14px;
+  box-shadow: var(--admin-shadow-1);
+  padding: 12px;
+}
+.adminCard__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 8px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--admin-stroke);
+}
+.adminCard__title { margin: 0; font-size: 16px; font-weight: 700; color: var(--admin-title); }
+.adminCard__sub { margin: 4px 0 0 0; color: var(--admin-muted); font-size: 13px; }
+.adminCard__meta { color: var(--admin-muted); font-size: 13px; }
+
+/* Forms */
+.formRow {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  margin: 10px 0;
+}
+.formRow input, .formRow select {
+  min-width: 180px;
+  padding: 8px 10px;
+  border: 1px solid var(--admin-stroke);
+  border-radius: 10px;
+  background: #fff;
+  outline: none;
+  box-shadow: var(--admin-shadow-1);
+}
+.formRow input:focus, .formRow select:focus {
+  border-color: var(--admin-stroke-strong);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.10);
+}
+
+/* Buttons */
+.btn {
+  appearance: none; border: 1px solid var(--admin-stroke);
+  background: #fff; color: #0f172a;
+  padding: 6px 10px; border-radius: 10px; cursor: pointer;
+  box-shadow: var(--admin-shadow-1);
+}
+.btn:hover { border-color: var(--admin-stroke-strong); background: #fefefe; }
+.btn--primary {
+  background: var(--brand-600, #2563eb); color: #fff; border-color: var(--brand-600, #2563eb);
+}
+.btn--primary:hover { filter: brightness(.97); }
+.btn--danger {
+  border-color: #f1b4b4; background: #fff5f5; color: #b42318;
+}
+.btn--danger:hover { background: #ffecec; }
+
+/* Tables */
+.tableWrap { overflow: auto; /* horizontal scroll if needed */ }
+.adminTable {
+  width: 100%;
+  border-collapse: separate; border-spacing: 0;
+  border: 1px solid var(--admin-stroke);
+  border-radius: 12px;
+  box-shadow: var(--admin-shadow-1);
+  overflow: hidden;
+}
+.adminTable thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--admin-head-bg);
+  text-align: left; padding: 10px 12px;
+  color: #475569; font-size: 12px; letter-spacing: .02em;
+  border-bottom: 1px solid var(--admin-stroke);
+}
+.adminTable tbody td {
+  padding: 10px 12px;
+  border-top: 1px solid var(--admin-stroke);
+  vertical-align: middle;
+}
+.adminTable tbody tr:nth-child(odd) { background: var(--admin-zebra); }
+.adminTable tbody tr:hover { background: #f2f6fd; }
+.ta-right { text-align: right; }
+.rowActions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Small elements */
+.muted { color: var(--admin-muted); }
+.colorDot { width: 12px; height: 12px; border-radius: 999px; display: inline-block; margin-right: 6px; vertical-align: -2px; }
+.bankColorCell { white-space: nowrap; }
+
+/* Accessibility */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+/* Responsive tweaks */
+@media (max-width: 960px) {
+  .adminHeader { flex-direction: column; align-items: stretch; }
+  .rowActions { gap: 6px; }
+}
