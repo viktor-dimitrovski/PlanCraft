@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import '../styles/enterprise.css'
 
 import {
@@ -13,7 +13,6 @@ import {
 
 import { usePlan } from '../state/usePlanStore'
 
-// API: keep exact exported names from lib/api.js
 import {
   fetchGrid,
   fetchProjects,
@@ -34,8 +33,25 @@ import LeftDock from '../components/LeftDock.jsx'
 import AssignmentPanel from '../components/AssignmentPanel.jsx'
 import Legend from '../components/Legend.jsx'
 import ResizableSidebar from '../components/ResizableSidebar.jsx'
+import Management from '../components/Management.jsx'
+
+function getRouteFromHash () {
+  return (window.location.hash === '#/admin') ? 'admin' : 'planner'
+}
 
 export default function App () {
+  const [route, setRouteState] = useState(getRouteFromHash())
+  const setRoute = useCallback((r) => {
+    setRouteState(r)
+    window.location.hash = r === 'admin' ? '#/admin' : '#/'
+  }, [])
+
+  useEffect(() => {
+    const onHash = () => setRouteState(getRouteFromHash())
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
   const [range, setRange] = useState(() => {
     const now = new Date()
     const from = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -77,25 +93,27 @@ export default function App () {
     return () => window.removeEventListener('plancraft:refresh', f)
   }, [range.from, range.to, scenarioId])
 
-  // -------- DnD
+  // -------- DnD (planner only)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   const onDragStart = (event) => {
     const { active } = event
     const data = active?.data?.current
-    const id = String(active?.id || '')
-    if (id.startsWith('phase:') && data?.phase) {
-      const ph = data.phase
-      setActiveDrag({ kind: 'phase', title: ph.title, days: ph.estimatedDays ?? 5 })
-      return
+    theId: {
+      const id = String(active?.id || '')
+      if (id.startsWith('phase:') && data?.phase) {
+        const ph = data.phase
+        setActiveDrag({ kind: 'phase', title: ph.title, days: ph.estimatedDays ?? 5 })
+        break theId
+      }
+      if (id.startsWith('task:') && data?.task) {
+        const t = data.task
+        const span = t._spanFloat ?? (typeof t.estimatedDays === 'number' ? t.estimatedDays / 5 : 1)
+        setActiveDrag({ kind: 'task', title: t.title, span, color: t.projectColor })
+        break theId
+      }
+      setActiveDrag(null)
     }
-    if (id.startsWith('task:') && data?.task) {
-      const t = data.task
-      const span = t._spanFloat ?? (typeof t.estimatedDays === 'number' ? t.estimatedDays / 5 : 1)
-      setActiveDrag({ kind: 'task', title: t.title, span, color: t.projectColor })
-      return
-    }
-    setActiveDrag(null)
   }
 
   const onDragEnd = async (event) => {
@@ -182,7 +200,7 @@ export default function App () {
 
   const onTaskClick = (task) => { setPanelTask(task); setPanelOpen(true) }
 
-  // UPDATED: accepts (taskId, phaseId), dispatches phaseUnscheduled to re-show in backlog
+  // accepts (taskId, phaseId), dispatches phaseUnscheduled to re-show in backlog
   const onUnschedule = async (taskId, phaseId) => {
     try {
       await unscheduleTask(taskId)
@@ -218,125 +236,140 @@ export default function App () {
       <div className="topbar">
         <div className="brand">PlanCraft</div>
         <div className="toolbar">
-          <button onClick={() => setWhatIf(!whatIf)} className={whatIf ? 'primary' : ''}>
-            {whatIf ? 'What-if ON' : 'What-if OFF'}
-          </button>
-          <button
-            onClick={() =>
-              autobalance(range.from.toISOString(), range.to.toISOString(), 0.85)
-                .then(r => alert((r.proposals || [])
-                  .map(p => `Task ${p.taskId}: ${p.reason}`).join('\n') || 'No proposals'))
-            }
-          >
-            Auto-balance
-          </button>
-          <button onClick={createScenarioNow}>New scenario</button>
+          <div className="navTabs">
+            <button className={route==='planner' ? 'primary' : ''} onClick={()=>setRoute('planner')}>Planner</button>
+            <button className={route==='admin' ? 'primary' : ''} onClick={()=>setRoute('admin')}>Admin</button>
+          </div>
+          {route==='planner' && (
+            <>
+              <button onClick={() => setWhatIf(!whatIf)} className={whatIf ? 'primary' : ''}>
+                {whatIf ? 'What-if ON' : 'What-if OFF'}
+              </button>
+              <button
+                onClick={() =>
+                  autobalance(range.from.toISOString(), range.to.toISOString(), 0.85)
+                    .then(r => alert((r.proposals || [])
+                      .map(p => `Task ${p.taskId}: ${p.reason}`).join('\n') || 'No proposals'))
+                }
+              >
+                Auto-balance
+              </button>
+              <button onClick={createScenarioNow}>New scenario</button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* DnD wraps left + grid + right so backlog → grid drag works */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
-        onDragStart={onDragStart}
-        onDragEnd={onDragEnd}
-        autoScroll
-      >
-        <div className="container">
-          <ResizableSidebar side="left" min={280} max={560} initial={320} storageKey="plancraft.leftWidth">
-            <LeftDock
-              projects={projects}
-              hideEmpty={hideEmpty}
-              onReload={refreshGrid}
-              onPlanPhase={planPhase}
-            />
-          </ResizableSidebar>
-
+      {route==='admin' ? (
+        <div className="container" style={{ gridTemplateColumns: '1fr' }}>
           <div className="main">
-            <Grid
-              range={range}
-              weeks={weeks}
-              people={people}
-              milestones={milestones}
-              density={density}
-              hideEmpty={hideEmpty}
-              onCreateTask={async (personId, weekIndex, title) => {
-                const w = weeks?.[weekIndex]; if (!w) return
-                const projectId = projects[0]?.id
-                try {
-                  const tRes = await apiCreateTask({
-                    projectId, title,
-                    estimatedDays: 5,
-                    startDate: w.start,
-                    durationDays: 7,
-                    status: 1,
-                    requiredSkills: []
-                  })
-                  await apiCreateAssignment({ taskId: tRes.id, personId, sharePercent: 100, isPrimary: true })
-                  refreshGrid()
-                } catch (e) {
-                  console.error('Quick add failed:', e)
-                  alert('Could not quick-add task. Check API console.')
-                }
-              }}
-              onTaskClick={onTaskClick}
-              onUnschedule={onUnschedule}  // now expects (taskId, phaseId)
-            />
+            <Management />
+          </div>
+        </div>
+      ) : (
+        // --- Planner Route ---
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          autoScroll
+        >
+          <div className="container">
+            <ResizableSidebar side="left" min={280} max={560} initial={320} storageKey="plancraft.leftWidth">
+              <LeftDock
+                projects={projects}
+                hideEmpty={hideEmpty}
+                onReload={refreshGrid}
+                onPlanPhase={planPhase}
+              />
+            </ResizableSidebar>
+
+            <div className="main">
+              <Grid
+                range={range}
+                weeks={weeks}
+                people={people}
+                milestones={milestones}
+                density={density}
+                hideEmpty={hideEmpty}
+                onCreateTask={async (personId, weekIndex, title) => {
+                  const w = weeks?.[weekIndex]; if (!w) return
+                  const projectId = projects[0]?.id
+                  try {
+                    const tRes = await apiCreateTask({
+                      projectId, title,
+                      estimatedDays: 5,
+                      startDate: w.start,
+                      durationDays: 7,
+                      status: 1,
+                      requiredSkills: []
+                    })
+                    await apiCreateAssignment({ taskId: tRes.id, personId, sharePercent: 100, isPrimary: true })
+                    refreshGrid()
+                  } catch (e) {
+                    console.error('Quick add failed:', e)
+                    alert('Could not quick-add task. Check API console.')
+                  }
+                }}
+                onTaskClick={onTaskClick}
+                onUnschedule={onUnschedule}
+              />
+            </div>
+
+            <ResizableSidebar side="right" min={260} max={420} initial={300} storageKey="plancraft.rightWidth">
+              <Legend items={projects || []} />
+              <AssignmentPanel
+                open={panelOpen}
+                task={panelTask}
+                onClose={() => setPanelOpen(false)}
+                onUnschedule={async (taskId) => {
+                  await onUnschedule(taskId, panelTask?.phaseId)
+                  setPanelOpen(false)
+                }}
+              />
+            </ResizableSidebar>
           </div>
 
-          <ResizableSidebar side="right" min={260} max={420} initial={300} storageKey="plancraft.rightWidth">
-            <Legend items={projects || []} />
-            <AssignmentPanel
-              open={panelOpen}
-              task={panelTask}
-              onClose={() => setPanelOpen(false)}
-              onUnschedule={async (taskId) => {
-                // use the shared handler so PhaseExplorer is informed instantly
-                await onUnschedule(taskId, panelTask?.phaseId)
-                setPanelOpen(false)
-              }}
-            />
-          </ResizableSidebar>
-        </div>
-
-        {/* Drag preview */}
-        <DragOverlay dropAnimation={null} className="dnd-overlay">
-          {activeDrag
-            ? (activeDrag.kind === 'phase'
-                ? (
-                  <div style={{
-                    padding: '6px 10px',
-                    border: '1px solid var(--stroke)',
-                    borderRadius: 12,
-                    background: '#fff',
-                    boxShadow: '0 6px 20px rgba(2,6,23,.18)',
-                    fontSize: 13
-                  }}>
-                    {activeDrag.title} <span className="muted-2">({activeDrag.days}d)</span>
-                  </div>
+          {/* Drag preview */}
+          <DragOverlay dropAnimation={null} className="dnd-overlay">
+            {activeDrag
+              ? (activeDrag.kind === 'phase'
+                  ? (
+                    <div style={{
+                      padding: '6px 10px',
+                      border: '1px solid var(--stroke)',
+                      borderRadius: 12,
+                      background: '#fff',
+                      boxShadow: '0 6px 20px rgba(2,6,23,.18)',
+                      fontSize: 13
+                    }}>
+                      {activeDrag.title} <span className="muted-2">({activeDrag.days}d)</span>
+                    </div>
+                  )
+                  : (
+                    <div style={{
+                      border: `2px solid ${activeDrag.color || 'var(--brand)'}`,
+                      background: '#fff',
+                      borderRadius: 12,
+                      height: 36,
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '0 10px',
+                      boxShadow: '0 6px 20px rgba(2,6,23,.18)'
+                    }}>
+                      <b style={{marginRight: 6}}>{activeDrag.title}</b>
+                      <span className="muted-2">
+                        {Number.isFinite(activeDrag.span) ? `${activeDrag.span.toFixed(1)}w` : ''}
+                      </span>
+                    </div>
+                  )
                 )
-                : (
-                  <div style={{
-                    border: `2px solid ${activeDrag.color || 'var(--brand)'}`,
-                    background: '#fff',
-                    borderRadius: 12,
-                    height: 36,
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '0 10px',
-                    boxShadow: '0 6px 20px rgba(2,6,23,.18)'
-                  }}>
-                    <b style={{marginRight: 6}}>{activeDrag.title}</b>
-                    <span className="muted-2">
-                      {Number.isFinite(activeDrag.span) ? `${activeDrag.span.toFixed(1)}w` : ''}
-                    </span>
-                  </div>
-                )
-              )
-            : null}
-        </DragOverlay>
-      </DndContext>
+              : null}
+          </DragOverlay>
+        </DndContext>
+      )}
     </div>
   )
 }

@@ -82,6 +82,13 @@ function TaskBar({ t, color, onUnschedule }) {
 
   const spanInt = Math.max(1, Math.ceil(t._spanFloat))
 
+  // pick a color in this order: task.t.color -> prop `color` -> project color -> bank color
+  const accent =
+    t.color ??
+    color ??
+    window.PLANCRAFT_COLORS?.project?.[t.projectId] ??
+    window.PLANCRAFT_COLORS?.bank?.[t.bankId];
+
   return (
     <div
       ref={setNodeRef}
@@ -96,14 +103,16 @@ function TaskBar({ t, color, onUnschedule }) {
       <div
         className="taskCard"
         style={{
-          borderColor: color || 'var(--brand)',
+          '--taskColor': accent,                 // <- feeds enterprise.css pipeline
+          borderColor: accent || 'var(--brand)', // keep old inline fallback (optional)
           width: `calc(${(t._spanFloat / spanInt) * 100}%)`
         }}
       >
         <TaskCard t={t} onUnschedule={onUnschedule} />
       </div>
     </div>
-  )
+  );
+
 }
 
 export default function Grid({

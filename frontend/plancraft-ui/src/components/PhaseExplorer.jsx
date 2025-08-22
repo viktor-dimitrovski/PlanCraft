@@ -10,21 +10,24 @@ function colorFromSeed(seed) {
   return `hsl(${h}deg 60% 85%)`
 }
 
-function PhaseChip({ phase, scheduled }) {
+function PhaseChip({ phase, scheduled, color, bankId }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `phase:${phase.id}`,
-    data: { phase },
+    // expose bank coloring to the drop target (scheduler) without breaking existing usage
+    data: { phase, bankId, bankColor: color },
     disabled: scheduled,
   })
 
   const style = {
     padding:'6px 8px',
     border:'1px solid var(--stroke)',
+    borderLeft:`4px solid ${color || 'var(--brand-600)'}`,
     borderRadius:12,
     margin:'4px 0',
-    background:'#fff',
+    // subtle tint so phases visually link to their bank
+    background: color ? `color-mix(in srgb, ${color} 8%, #fff)` : '#fff',
     cursor: scheduled ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab'),
-    opacity: scheduled ? .55 : (isDragging ? 0 : 1), // hide original while DragOverlay shows preview
+    opacity: scheduled ? .55 : (isDragging ? 0 : 1),
     boxShadow: '0 1px 1px rgba(2,6,23,.03)',
     touchAction: 'none',
   }
@@ -126,6 +129,18 @@ export default function PhaseExplorer(){
     }
   }, [loadAll])
 
+  /* Publish colors to a tiny global for the grid to reuse (no coupling) */
+  useEffect(() => {
+    const bank = {}
+    bankMap.forEach((v, k) => { bank[k] = v.color })
+    const project = {}
+    for (const p of projects) {
+      const info = bankMap.get(p.bankId)
+      if (info) project[p.id] = info.color
+    }
+    window.PLANCRAFT_COLORS = { bank, project }
+  }, [bankMap, projects])
+
   /* Group projects by bankId using real bank names/colors */
   const grouped = useMemo(() => {
     const groups = new Map()
@@ -162,11 +177,13 @@ export default function PhaseExplorer(){
       {grouped.map(group => {
         const isOpenBank = openBanks[group.bankId] ?? true
         return (
-          <div key={`bank-${group.bankId}`} style={{ marginBottom:8 }}>
+          /* Set --accent here so all children (project head + chips) inherit bank color */
+          <div key={`bank-${group.bankId}`} style={{ marginBottom:8, '--accent': group.bankColor }}>
             <div className="bankHead" onClick={()=>setOpenBanks(s=>({ ...s, [group.bankId]: !isOpenBank }))}>
+              <span className={'chev' + (isOpenBank ? ' open' : '')} aria-hidden />
               <span className="legendDot" style={{ background: group.bankColor }}></span>
               <b>{group.bankName}</b>
-              <span className="badge" style={{ marginLeft:'auto' }}>{group.projects.length} projects</span>
+              <span className="badge soft" style={{ marginLeft:'auto' }}>{group.projects.length} projects</span>
             </div>
             {isOpenBank && (
               <div style={{ paddingLeft:6 }}>
@@ -178,15 +195,24 @@ export default function PhaseExplorer(){
                   return (
                     <div key={`proj-${p.id}`} style={{ marginBottom:6 }}>
                       <div className="projectHead" onClick={()=>setOpenProjects(s=>({ ...s, [p.id]: !isOpenProj }))}>
+                        <span className={'chev' + (isOpenProj ? ' open' : '')} aria-hidden />
                         <span className="legendDot" style={{ background: group.bankColor }}></span>
                         <b>{p.name}</b>
-                        <span className="badge" style={{ marginLeft:'auto' }}>{phases.length} phases</span>
+                        <span className="badge soft" style={{ marginLeft:'auto' }}>{phases.length} phases</span>
                         <button onClick={(e)=>{ e.stopPropagation(); onAdd(p.id) }} className="primary">+ Phase</button>
                       </div>
                       {isOpenProj && (
                         <div style={{ paddingLeft:8 }}>
                           {phases.length === 0 && <div style={{ fontSize:12, color:'var(--muted)', padding:'6px 0' }}>No phases.</div>}
-                          {phases.map(ph => <PhaseChip key={ph.id} phase={ph} scheduled={false} />)}
+                          {phases.map(ph => (
+                            <PhaseChip
+                              key={ph.id}
+                              phase={ph}
+                              scheduled={false}
+                              color={group.bankColor}
+                              bankId={group.bankId}
+                            />
+                          ))}
                         </div>
                       )}
                     </div>
