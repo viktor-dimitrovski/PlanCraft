@@ -1,3 +1,11 @@
+D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.csproj.AssemblyReference.cache
+D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.GeneratedMSBuildEditorConfig.editorconfig
+D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.AssemblyInfoInputs.cache
+D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.AssemblyInfo.cs
+D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.csproj.CoreCompileInputs.cache
+D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.MvcApplicationPartsAssemblyInfo.cs
+D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.MvcApplicationPartsAssemblyInfo.cache
+D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.sourcelink.json
 D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\bin\Debug\net8.0\appsettings.json
 D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\bin\Debug\net8.0\data\seed.json
 D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\bin\Debug\net8.0\PlanCraft.Api.exe
@@ -90,14 +98,6 @@ D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\bin\Debug\net8.0\ru\Microsoft
 D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\bin\Debug\net8.0\tr\Microsoft.CodeAnalysis.Workspaces.resources.dll
 D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\bin\Debug\net8.0\zh-Hans\Microsoft.CodeAnalysis.Workspaces.resources.dll
 D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\bin\Debug\net8.0\zh-Hant\Microsoft.CodeAnalysis.Workspaces.resources.dll
-D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.csproj.AssemblyReference.cache
-D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.GeneratedMSBuildEditorConfig.editorconfig
-D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.AssemblyInfoInputs.cache
-D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.AssemblyInfo.cs
-D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.csproj.CoreCompileInputs.cache
-D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.MvcApplicationPartsAssemblyInfo.cs
-D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.MvcApplicationPartsAssemblyInfo.cache
-D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\PlanCraft.Api.sourcelink.json
 D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\staticwebassets.build.json
 D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\staticwebassets.development.json
 D:\GIT\my-projects\PlanCraft\backend\PlanCraft.Api\obj\Debug\net8.0\staticwebassets\msbuild.PlanCraft.Api.Microsoft.AspNetCore.StaticWebAssets.props

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
-import { fetchProjects, getPhases, addPhase, apiGet } from '../lib/api'
+import { fetchProjects, getPhases, addPhase } from '../lib/api'
 import { useDraggable } from '@dnd-kit/core'
 
 function PhaseChip({ phase, scheduled }) {
@@ -34,17 +34,13 @@ export default function PhaseExplorer(){
       const ps = await fetchProjects()
       setProjects(ps)
       const map = {}
-      for (const p of ps) map[p.id] = await getPhases(p.id)
+      for (const p of ps) {
+        map[p.id] = await getPhases(p.id)
+      }
       setPhasesByProject(map)
 
-      // If /api/tasks exists, compute which phases are already scheduled.
-      try {
-        const tasks = await apiGet('tasks')
-        const sched = new Set((tasks || []).filter(t => t.phaseId != null).map(t => t.phaseId))
-        setScheduledPhaseIds(sched)
-      } catch {
-        setScheduledPhaseIds(new Set())
-      }
+      // scheduledPhaseIds will stay empty until tasks endpoint has an explicit API wrapper
+      setScheduledPhaseIds(new Set())
     } finally {
       setLoading(false)
     }
@@ -52,7 +48,6 @@ export default function PhaseExplorer(){
 
   useEffect(() => { loadAll() }, [loadAll])
 
-  // Single, deduplicated listener set
   useEffect(() => {
     const onChanged = () => loadAll()
     window.addEventListener('plancraft:projectsChanged', onChanged)

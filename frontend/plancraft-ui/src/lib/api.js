@@ -1,51 +1,142 @@
 // frontend/plancraft-ui/src/lib/api.js
-const BASE = (import.meta.env.VITE_API_BASE) || 'http://localhost:5058/api';
+// Full 1:1 coverage of Planning Grid server routes.
 
+// NOTE: Expect ESM (Vite). You can override the base via VITE_API_BASE, e.g. "http://localhost:5058/api".
+export const BASE = (import.meta?.env?.VITE_API_BASE) ?? 'http://localhost:5058/api';
+
+/** Build a clean URL without breaking http(s):// */
+function buildUrl(path) {
+  const left  = String(BASE).replace(/\/+$/g, '');
+  const right = String(path).replace(/^\/+/g, '');
+  return `${left}/${right}`;
+}
+
+/** Core request helper */
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}/${path}`, {
+  const res = await fetch(buildUrl(path), {
     headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
     ...options,
   });
   if (!res.ok) {
-    const text = await res.text().catch(()=> ''); 
+    const text = await res.text().catch(() => '');
     throw new Error(`HTTP ${res.status} ${res.statusText}: ${text}`);
   }
   const ct = res.headers.get('content-type') || '';
   return ct.includes('application/json') ? res.json() : res.text();
 }
 
-export const apiGet = (path) => request(path);
-export const apiPost = (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) });
-export const apiPut = (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) });
-export const apiDelete = (path) => request(path, { method: 'DELETE' });
+const asISO = (d) => (d instanceof Date ? d.toISOString() : d);
 
-export async function fetchGrid(from, to, scenarioId) {
-  const url = `plan/grid?from=${from}&to=${to}` + (scenarioId? `&scenarioId=${scenarioId}` : '');
-  return apiGet(url);
-}
-export async function fetchPeople(){ return apiGet('people'); }
-export async function fetchProjects(){ return apiGet('projects'); }
-export async function autobalance(from, to, targetLoad=0.85){
-  return apiPost('plan/autobalance', { from, to, targetLoad });
-}
-export async function moveTask(payload){
-  return apiPost('plan/move', payload);
-}
-export async function getScenarios(){ return apiGet('scenarios'); }
-export async function createScenario(name){ return apiPost('scenarios', { name }); }
-export async function compareScenario(sid){ return apiGet(`plan/compare?scenarioId=${sid}`); }
-export async function forecast(projectId){ return apiGet(`plan/forecast?projectId=${projectId}`); }
-export async function apiCreateTask(task){ return apiPost('tasks', task); }
-export async function apiCreateAssignment(a){ return apiPost('assignments', a); }
-export async function unscheduleTask(taskId){ return apiDelete(`tasks/${taskId}`); }
-export async function unplanPhase(phaseId) { return apiDelete(`phases/${phaseId}/plan`);}
+/** Shorthand HTTP helpers (do NOT prefix paths with a leading slash). */
+export const apiGet    = (p, options)        => request(p, { method: 'GET', ...(options||{}) });
+export const apiPost   = (p, body, options)  => request(p, { method: 'POST', body: JSON.stringify(body ?? {}), ...(options||{}) });
+export const apiPut    = (p, body, options)  => request(p, { method: 'PUT',  body: JSON.stringify(body ?? {}), ...(options||{}) });
+export const apiDelete = (p, options)        => request(p, { method: 'DELETE', ...(options||{}) });
 
-// NEW: add this
-export const fetchBanks    = () => apiGet('banks');
+/* =========================== PLAN =========================== */
 
-export const createBank    = (b) => apiPost('banks', b);
-export const createPerson  = (p) => apiPost('people', p);
-export const createProject = (p) => apiPost('projects', p);
-export const getPhases     = (projectId) => apiGet(`projects/${projectId}/phases`);
-export const addPhase      = (projectId, phase) => apiPost(`projects/${projectId}/phases`, phase);
-export const planPhase     = (phaseId, payload) => apiPost(`phases/${phaseId}/plan`, payload);
+/** GET /plan/grid?from=...&to=...&scenarioId=opt */
+export function fetchGrid(from, to, scenarioId) {
+  const q = new URLSearchParams();
+  if (from) q.set('from', asISO(from));
+  if (to) q.set('to', asISO(to));
+  if (scenarioId != null) q.set('scenarioId', String(scenarioId));
+  return apiGet(`plan/grid?${q.toString()}`);
+}
+
+/** POST /plan/autobalance  { from, to, targetLoad } */
+export function autobalance(from, to, targetLoad = 0.85) {
+  return apiPost('plan/autobalance', { from: asISO(from), to: asISO(to), targetLoad });
+}
+
+/** POST /plan/move  { taskId, newStartDate?, newPrimaryPersonId?, newDurationDays?, copy } */
+export function moveTask(payload) { return apiPost('plan/move', payload); }
+
+/** GET /plan/compare?scenarioId=SID */
+export function compareScenario(sid) { return apiGet(`plan/compare?scenarioId=${encodeURIComponent(sid)}`); }
+
+/** GET /plan/forecast?projectId=PID&trials=opt */
+export function forecast(projectId, trials) {
+  const q = new URLSearchParams({ projectId: String(projectId) });
+  if (trials != null) q.set('trials', String(trials));
+  return apiGet(`plan/forecast?${q.toString()}`);
+}
+
+/* =========================== PEOPLE =========================== */
+
+export const fetchPeople      = ()            => apiGet('people');
+export const createPerson     = (p)           => apiPost('people', p);
+export const updatePerson     = (id, p)       => apiPut(`people/${id}`, p);
+export const deletePerson     = (id)          => apiDelete(`people/${id}`);
+
+/* =========================== BANKS =========================== */
+
+export const fetchBanks       = ()            => apiGet('banks');
+export const createBank       = (b)           => apiPost('banks', b);
+export const updateBank       = (id, b)       => apiPut(`banks/${id}`, b);
+export const deleteBank       = (id)          => apiDelete(`banks/${id}`);
+
+/* =========================== PROJECTS =========================== */
+
+export const fetchProjects    = ()            => apiGet('projects');
+export const createProject    = (p)           => apiPost('projects', p);
+export const updateProject    = (id, p)       => apiPut(`projects/${id}`, p);
+export const deleteProject    = (id)          => apiDelete(`projects/${id}`);
+
+/* =========================== PHASES =========================== */
+
+export const getPhases        = (projectId)   => apiGet(`projects/${projectId}/phases`);
+export const addPhase         = (projectId, phase) => apiPost(`projects/${projectId}/phases`, phase);
+export const updatePhase      = (id, phase)   => apiPut(`phases/${id}`, phase);
+export const deletePhase      = (id)          => apiDelete(`phases/${id}`);
+
+export const planPhase        = (phaseId, payload) => apiPost(`phases/${phaseId}/plan`, payload);
+export const unplanPhase      = (phaseId)     => apiDelete(`phases/${phaseId}/plan`);
+
+/* =========================== TASKS =========================== */
+
+export const fetchTasks       = ()            => apiGet('tasks');
+export const apiCreateTask    = (task)        => apiPost('tasks', task);
+export const updateTask       = (id, task)    => apiPut(`tasks/${id}`, task);
+/** Alias pair for DELETE /tasks/{id} (keep both for compatibility) */
+export const unscheduleTask   = (taskId)      => apiDelete(`tasks/${taskId}`);
+export const deleteTask       = (taskId)      => apiDelete(`tasks/${taskId}`);
+
+/* =========================== ASSIGNMENTS =========================== */
+
+export const fetchAssignments = ()            => apiGet('assignments');
+export const apiCreateAssignment = (a)        => apiPost('assignments', a);
+export const updateAssignment = (id, a)       => apiPut(`assignments/${id}`, a);
+export const deleteAssignment = (id)          => apiDelete(`assignments/${id}`);
+
+/* =========================== DEPENDENCIES =========================== */
+
+export const fetchDeps        = ()            => apiGet('deps');
+export const createDep        = (dep)         => apiPost('deps', dep);
+export const deleteDep        = (id)          => apiDelete(`deps/${id}`);
+
+/* =========================== TIME OFF =========================== */
+
+export const fetchTimeOff     = ()            => apiGet('timeoff');
+export const createTimeOff    = (x)           => apiPost('timeoff', x);
+
+/* =========================== HOLIDAYS =========================== */
+
+export const fetchHolidays    = ()            => apiGet('holidays');
+export const createHoliday    = (h)           => apiPost('holidays', h);
+
+/* =========================== SCENARIOS =========================== */
+
+export const getScenarios     = ()            => apiGet('scenarios');
+export const createScenario   = (nameOrObj)   =>
+  typeof nameOrObj === 'string' ? apiPost('scenarios', { name: nameOrObj }) : apiPost('scenarios', nameOrObj);
+export const addScenarioOverride   = (scenarioId, override) => apiPost(`scenarios/${scenarioId}/override`, override);
+export const getScenarioOverrides  = (scenarioId)           => apiGet(`scenarios/${scenarioId}/overrides`);
+
+/* =========================== UTILITIES =========================== */
+
+/** Ping the API (useful in UI to check connectivity). */
+export const ping = () => apiGet('plan/forecast?projectId=0&trials=1').catch(() => 'ok');
+
+/** For advanced usage/testing */
+export const _raw = { request, apiGet, apiPost, apiPut, apiDelete };

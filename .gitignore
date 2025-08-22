@@ -1,106 +1,112 @@
-# ======================
-# Global ignores
-# ======================
+# ------------------------------
+# Repo-wide
+# ------------------------------
 *.log
+logs/
 *.tmp
-*.bak
-*.swp
-*.swo
+*.temp
+*.pid
+*.seed
+*.pid.lock
+
+# OS cruft
 .DS_Store
 Thumbs.db
-
-# ======================
-# OS specific
-# ======================
 ehthumbs.db
 Icon?
-desktop.ini
+Desktop.ini
 
-# ======================
-# Visual Studio / Rider / VSCode
-# ======================
-.vs/
+# Archives / large bundles (keep artifacts out of git)
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# Editors / IDE
 .vscode/
 .idea/
-*.user
-*.suo
-*.userosscache
-*.sln.docstates
+*.iml
+*.sublime-*
+*.code-workspace
 
-# ======================
-# .NET / C# / EF
-# ======================
-bin/
-obj/
-out/
-Debug/
-Release/
-TestResults/
-[Bb]uild[Ll]og.*
-*.dbmdl
-*.bak
-*.ldf
-*.mdf
-*.ndf
+# Swap files
+*~
+*.swp
+*.swo
 
-# EF Core Migrations snapshot backups
-Migrations/*.Designer.cs
-Migrations/*Snapshot.cs
-*.sqlite
-
-# ======================
-# Node / React Frontend
-# ======================
+# ------------------------------
+# Frontend (Vite / React / Node)
+# ------------------------------
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnp/
-.pnp.js
-coverage/
 dist/
 build/
-.cache/
+.vite/
+.npm/
+.pnp.*
+.yarn/*
+!.yarn/patches/
+!.yarn/plugins/
+!.yarn/releases/
+!.yarn/sdks/
+!.yarn/versions/
+.nyc_output/
+coverage/
 .eslintcache
+.stylelintcache
 *.tsbuildinfo
 
-# Vite specific
-vite.config.ts.timestamp-*
-vite.config.js.timestamp-*
-
-# ======================
-# Environment / Secrets
-# ======================
+# Environment files
 .env
-.env.local
-.env.*.local
-appsettings.Development.json
-appsettings.Local.json
-appsettings.*.json
+.env.*
+!.env.example
+!.env.sample
+!.env.schema
 
-# ======================
-# Database / Docker
-# ======================
-*.db
-*.sql
-docker-compose.override.yml
-docker-compose.local.yml
-.pgdata/
-postgres-data/
+# ------------------------------
+# Backend (.NET / ASP.NET Core)
+# ------------------------------
+# Build output
+[Bb]in/
+[Oo]bj/
+artifacts/
+TestResults/
+BenchmarkDotNet.Artifacts/
+xunit-results.xml
+*.trx
+*.coverage*
+*.opendb
 
-# ======================
-# Logs / Seeds / Temp
-# ======================
-*.seed.json
-*.seed
-logs/
-log/
-*.nlog
-*.serilog.json
+# VS / Rider caches
+.vs/
+_ReSharper*/
+*.DotSettings.user
+*.user
+*.rsuser
+*.suo
+*.cache
 
-# ======================
-# PlanCraft specific
-# ======================
-/backend/PlanCraft.Api/Seed.json
-/backend/PlanCraft.Api/ef-scripts/
-/frontend/plancraft-ui/.vite/
+# NuGet
+*.nupkg
+*.snupkg
+# packages/ folder is rarely used with modern SDKs, but ignore if present
+packages/
+
+# EF Core design-time stuff
+# (NOTE: Do NOT ignore Migrations/*.cs — those should be committed)
+*.dbmdl
+
+# ------------------------------
+# Images / exports from design tools
+# ------------------------------
+*.sketch
+*.fig
+*.psd
+
+# ------------------------------
+# Local data / scratch
+# ------------------------------
+tmp/
+temp/
+*.local.*
+*.local.json

@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PlanCraft.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a91cb19d7e7add1dfba79b46804ee3a75c6f285d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+598e8f9a8f3fdb0833b4dab94203b521ef677709")]
 [assembly: System.Reflection.AssemblyProductAttribute("PlanCraft.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PlanCraft.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

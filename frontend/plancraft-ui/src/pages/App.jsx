@@ -1,13 +1,31 @@
 import React, { useEffect, useState } from 'react'
 import '../styles/enterprise.css'
 
-import { DndContext, useSensor, useSensors, PointerSensor, closestCenter } from '@dnd-kit/core'
+import {
+  DndContext,
+  useSensor,
+  useSensors,
+  PointerSensor,
+  closestCenter,
+  MeasuringStrategy,        // ⬅️ added
+} from '@dnd-kit/core'
 
 import { usePlan } from '../state/usePlanStore'
+
+// ✅ use the names exactly as they exist in api.js
 import {
-  fetchGrid, fetchProjects, moveTask, autobalance,
-  getScenarios, createScenario, compareScenario, forecast,
-  apiCreateTask, apiCreateAssignment, planPhase
+  fetchGrid,           // was getGrid in some drafts
+  fetchProjects,
+  moveTask,
+  autobalance,
+  getScenarios,
+  createScenario,
+  compareScenario,
+  forecast,
+  apiCreateTask,
+  apiCreateAssignment,
+  planPhase,
+  unscheduleTask       // was deleteTask in some drafts
 } from '../lib/api'
 
 import Grid from '../components/Grid.jsx'
@@ -15,15 +33,15 @@ import LeftDock from '../components/LeftDock.jsx'
 import AssignmentPanel from '../components/AssignmentPanel.jsx'
 import Legend from '../components/Legend.jsx'
 import ResizableSidebar from '../components/ResizableSidebar.jsx'
-import { unscheduleTask } from '../lib/api';
 
-export default function App(){
+export default function App () {
   const [range, setRange] = useState(() => {
     const now = new Date()
     const from = new Date(now.getFullYear(), now.getMonth(), 1)
-    const to = new Date(now.getFullYear(), now.getMonth() + 5, 1)
+    const to   = new Date(now.getFullYear(), now.getMonth() + 5, 1)
     return { from, to }
   })
+
   const [hideEmpty, setHideEmpty] = useState(true)
   const [density, setDensity] = useState('compact')
 
@@ -37,10 +55,13 @@ export default function App(){
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelTask, setPanelTask] = useState(null)
 
+  // -------- data
   useEffect(() => { fetchProjects().then(setProjects) }, [])
 
   const refreshGrid = () =>
-    fetchGrid(range.from.toISOString(), range.to.toISOString(), scenarioId).then(setData)
+    fetchGrid(range.from.toISOString(), range.to.toISOString(), scenarioId)
+      .then(setData)
+
   const refreshScenarios = () => getScenarios().then(setScenarios)
 
   useEffect(() => { refreshGrid() }, [range.from, range.to, scenarioId])
@@ -52,53 +73,58 @@ export default function App(){
     return () => window.removeEventListener('plancraft:refresh', f)
   }, [range.from, range.to, scenarioId])
 
+  // -------- DnD
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
-  // DnD drop handler: tasks and phases
   const onDragEnd = async (event) => {
-    const { active, over } = event;
-    if (!over) return;
+    const { active, over } = event
+    if (!over) return
 
-    const aid = String(active.id);
-    const oid = String(over.id);
+    const aid = String(active.id)
+    const oid = String(over.id)
 
+    // Phase from backlog → cell (schedule it)
     if (aid.startsWith('phase:') && oid.startsWith('cell:')) {
-      const parts = aid.split(':');
-      const phaseId = parseInt(parts[1], 10);
-      if (!Number.isFinite(phaseId)) return;
+      const parts = aid.split(':')
+      const phaseId = parseInt(parts[1], 10)
+      if (!Number.isFinite(phaseId)) return
 
-      const [, personIdStr, weekIdxStr] = oid.split(':');
-      const personId = parseInt(personIdStr, 10);
-      const weekIndex = parseInt(weekIdxStr, 10);
-      const w = weeks?.[weekIndex];
-      if (!w) return;
+      const [, personIdStr, weekIdxStr] = oid.split(':')
+      const personId = parseInt(personIdStr, 10)
+      const weekIndex = parseInt(weekIdxStr, 10)
+      const w = weeks?.[weekIndex]
+      if (!w) return
 
       try {
-        await planPhase(phaseId, { personId, startDateUtc: w.start, requiredSkills: [] });
-        // refresh everything that depends on tasks/phases
-        refreshGrid();
-        window.dispatchEvent(new Event('plancraft:refresh'));
-        window.dispatchEvent(new Event('plancraft:projectsChanged'));
+        await planPhase(phaseId, {
+          personId,
+          startDateUtc: w.start,
+          requiredSkills: []
+        })
+        refreshGrid()
+        window.dispatchEvent(new Event('plancraft:refresh'))
+        window.dispatchEvent(new Event('plancraft:projectsChanged'))
       } catch (err) {
-        console.error('planPhase failed:', err);
-        alert('Could not schedule phase. See console for details.');
+        console.error('planPhase failed:', err)
+        alert('Could not schedule phase. See console for details.')
       }
-      return;
+      return
     }
 
-    // Task moved/copied across cells
+    // Task moved (or copied with Alt/Ctrl) to another cell
     if (aid.startsWith('task:') && oid.startsWith('cell:')) {
-      const [, personIdStr, weekIdxStr] = oid.split(':');
-      const personId = parseInt(personIdStr, 10);
-      const weekIndex = parseInt(weekIdxStr, 10);
-      const w = weeks?.[weekIndex];
-      if (!w) return;
+      const [, personIdStr, weekIdxStr] = oid.split(':')
+      const personId = parseInt(personIdStr, 10)
+      const weekIndex = parseInt(weekIdxStr, 10)
+      const w = weeks?.[weekIndex]
+      if (!w) return
 
-      const copy = !!(event?.activatorEvent?.altKey || event?.activatorEvent?.ctrlKey);
-      const task = active?.data?.current?.task;
-      if (!task) return;
+      const copy = !!(event?.activatorEvent?.altKey || event?.activatorEvent?.ctrlKey)
+      const task = active?.data?.current?.task
+      if (!task) return
 
       if (whatIf) {
+        // optimistic local move
         setData({
           weeks,
           milestones,
@@ -108,7 +134,7 @@ export default function App(){
               ? { ...p, tasks: [...(p.tasks || []), { ...task, startDate: w.start }] }
               : p
             )
-        });
+        })
       } else {
         try {
           await moveTask({
@@ -117,17 +143,18 @@ export default function App(){
             newPrimaryPersonId: personId,
             newDurationDays: undefined,
             copy
-          });
-          refreshGrid();
+          })
+          refreshGrid()
         } catch (err) {
-          console.error('moveTask failed:', err);
-          alert('Could not move task. See console for details.');
+          console.error('moveTask failed:', err)
+          alert('Could not move task. See console for details.')
         }
       }
     }
   }
 
   const onTaskClick = (task) => { setPanelTask(task); setPanelOpen(true) }
+  const onUnschedule = async (taskId) => { await unscheduleTask(taskId); refreshGrid() }   // ⬅️ added
 
   const createScenarioNow = async () => {
     const name = prompt('Scenario name') || 'Scenario'
@@ -135,7 +162,7 @@ export default function App(){
     setScenario(s.id)
     refreshScenarios()
   }
-  const doCompare = async () => { if (scenarioId) setCompare(await compareScenario(scenarioId)) }
+  const doCompare  = async () => { if (scenarioId) setCompare(await compareScenario(scenarioId)) }
   const doForecast = async () => { if (selectedProject) setForecastOut(await forecast(selectedProject)) }
 
   const onCreateTask = async (personId, weekIndex, title) => {
@@ -143,7 +170,12 @@ export default function App(){
     const projectId = projects[0]?.id
     try {
       const tRes = await apiCreateTask({
-        projectId, title, estimatedDays: 5, startDate: w.start, durationDays: 7, status: 1, requiredSkills: []
+        projectId, title,
+        estimatedDays: 5,
+        startDate: w.start,
+        durationDays: 7,
+        status: 1,
+        requiredSkills: []
       })
       await apiCreateAssignment({ taskId: tRes.id, personId, sharePercent: 100, isPrimary: true })
       refreshGrid()
@@ -153,10 +185,9 @@ export default function App(){
     }
   }
 
-  // Range inputs with safe fallbacks
   const colCount = weeks?.length || 0
-  const fromStr = weeks?.[0]?.start?.slice?.(0, 10) ?? ''
-  const toStr   = weeks?.[colCount - 1]?.end?.slice?.(0, 10) ?? ''
+  const fromStr  = weeks?.[0]?.start?.slice?.(0,10) ?? ''
+  const toStr    = weeks?.[colCount - 1]?.end?.slice?.(0,10) ?? ''
 
   const onFrom = (e) => { const v = e.target.value; if (!v) return; setRange(r => ({ ...r, from: new Date(v) })) }
   const onTo   = (e) => { const v = e.target.value; if (!v) return; setRange(r => ({ ...r, to:   new Date(v) })) }
@@ -169,86 +200,65 @@ export default function App(){
           <button onClick={() => setWhatIf(!whatIf)} className={whatIf ? 'primary' : ''}>
             {whatIf ? 'What-if ON' : 'What-if OFF'}
           </button>
-          <button onClick={() =>
-            autobalance(range.from.toISOString(), range.to.toISOString(), 0.85)
-              .then(r => alert((r.proposals || []).map(p => `Task ${p.taskId}: ${p.reason}`).join('\n') || 'No proposals'))
-          }>Auto-balance</button>
-
-          <button onClick={createScenarioNow}>New Scenario</button>
-          <select value={scenarioId || ''} onChange={e => setScenario(e.target.value ? parseInt(e.target.value, 10) : null)}>
-            <option value="">Baseline</option>
-            {scenarios.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <button onClick={doCompare} disabled={!scenarioId}>Compare</button>
-
-          <select value={selectedProject || ''} onChange={e => setSelectedProject(e.target.value ? parseInt(e.target.value, 10) : null)}>
-            <option value="">Forecast Project…</option>
-            {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-          <button onClick={doForecast} disabled={!selectedProject}>Forecast</button>
+          <button
+            onClick={() =>
+              autobalance(range.from.toISOString(), range.to.toISOString(), 0.85)
+                .then(r => alert((r.proposals || [])
+                  .map(p => `Task ${p.taskId}: ${p.reason}`).join('\n') || 'No proposals'))
+            }
+          >
+            Auto-balance
+          </button>
+          <button onClick={createScenarioNow}>New scenario</button>
         </div>
       </div>
 
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-        <div className="container" data-grid-container>
-          <ResizableSidebar>
-            <LeftDock afterChange={(what) => {
-              if (what === 'person') refreshGrid()
-              if (what === 'project' || what === 'bank') fetchProjects().then(setProjects)
-            }} />
-            {/* The resizer handle is inside ResizableSidebar */}
-          </ResizableSidebar>
+      <div className="container">
+        <ResizableSidebar side="left" min={280} max={560} initial={320} storageKey="plancraft.leftWidth">
+          <LeftDock
+            projects={projects}
+            hideEmpty={hideEmpty}
+            onReload={refreshGrid}
+            onPlanPhase={planPhase}
+          />
+        </ResizableSidebar>
 
-          <main className="gridwrap">
-            {weeks?.length > 0 && (
-              <Grid
-                weeks={weeks}
-                people={people}
-                milestones={milestones}
-                onTaskClick={onTaskClick}
-                onCreateTask={onCreateTask}
-                onRemoveTask={async (task) => {
-                  if (!confirm(`Unschedule "${task.title}"?`)) return
-                  try{
-                    await unscheduleTask(task.id)
-                    refreshGrid()
-                    window.dispatchEvent(new Event('plancraft:refresh'))
-                    window.dispatchEvent(new Event('plancraft:projectsChanged'))
-                  }catch(e){
-                    console.error(e); alert('Could not unschedule task.')
-                  }
-                }}
-              />
-            )}
-            <AssignmentPanel open={panelOpen} task={panelTask} onClose={() => setPanelOpen(false)} refresh={refreshGrid} />
-          </main>
-
-          <aside className="rightbar">
-            <h3>Compare</h3>
-            {compare.length === 0
-              ? <p style={{ color: '#64748b' }}>Select a scenario and click Compare.</p>
-              : <ul>{compare.map((c, i) => (
-                  <li key={i}>
-                    {projects.find(p => p.id === c.projectId)?.name}: Slip {Math.round(c.slipDays)}d
-                    {' '} (base {new Date(c.baseFinish).toLocaleDateString()} → scen {new Date(c.scenarioFinish).toLocaleDateString()})
-                  </li>
-                ))}</ul>
-            }
-            <hr />
-            <h3>Range</h3>
-            <div style={{ display: 'grid', gap: 8 }}>
-              <input type="date" value={fromStr} onChange={onFrom} />
-              <input type="date" value={toStr}   onChange={onTo} />
-            </div>
-            <hr />
-            <h3>Forecast</h3>
-            {!forecastOut
-              ? <p style={{ color: '#64748b' }}>Choose a project and click Forecast.</p>
-              : <p>P50 finish: <b>{new Date(forecastOut.p50).toLocaleDateString()}</b><br/>
-                   P90 finish: <b>{new Date(forecastOut.p90).toLocaleDateString()}</b></p>}
-          </aside>
+        <div className="main">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={onDragEnd}
+            measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}   // ⬅️ added
+            autoScroll
+          >
+            <Grid
+              range={range}
+              weeks={weeks}
+              people={people}
+              milestones={milestones}
+              density={density}
+              hideEmpty={hideEmpty}
+              onCreateTask={onCreateTask}
+              onTaskClick={onTaskClick}
+              onUnschedule={onUnschedule}     // ⬅️ added
+            />
+          </DndContext>
         </div>
-      </DndContext>
+
+        <ResizableSidebar side="right" min={260} max={420} initial={300} storageKey="plancraft.rightWidth">
+          <Legend items={projects || []} />
+          <AssignmentPanel
+            open={panelOpen}
+            task={panelTask}
+            onClose={() => setPanelOpen(false)}
+            onUnschedule={async (taskId) => {
+              await unscheduleTask(taskId)
+              setPanelOpen(false)
+              refreshGrid()
+            }}
+          />
+        </ResizableSidebar>
+      </div>
     </div>
   )
 }
