@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
+import '../styles/admin.css' // ⬅️ separate, page-specific styles
+
 import {
   fetchBanks, createBank, updateBank, deleteBank,
   fetchProjects, createProject, updateProject, deleteProject,
@@ -6,14 +8,13 @@ import {
   fetchTasks, apiCreateTask, updateTask, deleteTask
 } from '../lib/api'
 
-/* ---------- Helpers ---------- */
+/* ---------- shared helpers ---------- */
 
 const iso = (d) => {
   try {
     if (!d) return null
     const dt = new Date(d)
     if (isNaN(+dt)) return null
-    // midnight UTC for date-only pickers
     return new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate())).toISOString()
   } catch { return null }
 }
@@ -30,7 +31,9 @@ function useAsync(fn, deps) {
   return [run, loading, error]
 }
 
-/* ---------- Banks ---------- */
+/* =========================================================
+   Banks
+   ========================================================= */
 
 function BanksManager({ onChange }) {
   const [rows, setRows] = useState([])
@@ -38,7 +41,7 @@ function BanksManager({ onChange }) {
   const [editId, setEditId] = useState(null)
   const [edit, setEdit] = useState({})
 
-  const [load] = useAsync(async () => {
+  const [load, loading] = useAsync(async () => {
     const data = await fetchBanks()
     setRows(data || [])
   }, [setRows])
@@ -66,50 +69,69 @@ function BanksManager({ onChange }) {
   }
 
   return (
-    <div className="crudCard">
-      <div className="crudCardHead"><b>Banks</b></div>
+    <section className="adminCard">
+      <header className="adminCard__head">
+        <div>
+          <h3 className="adminCard__title">Banks</h3>
+          <p className="adminCard__sub">Create and manage banks and their brand color.</p>
+        </div>
+        <div className="adminCard__meta">{loading ? 'Loading…' : `${rows.length} total`}</div>
+      </header>
+
       <form className="formRow" onSubmit={submit}>
-        <input placeholder="Bank name" value={form.name} onChange={e=>setForm({...form, name:e.target.value})} />
-        <input placeholder="Color (optional)" value={form.color} onChange={e=>setForm({...form, color:e.target.value})} />
-        <button className="primary" type="submit">Add</button>
+        <label className="sr-only" htmlFor="bankName">Bank name</label>
+        <input id="bankName" placeholder="Bank name" value={form.name} onChange={e=>setForm({...form, name:e.target.value})} />
+        <label className="sr-only" htmlFor="bankColor">Color</label>
+        <input id="bankColor" placeholder="Color (optional)" value={form.color} onChange={e=>setForm({...form, color:e.target.value})} />
+        <button className="btn btn--primary" type="submit">Add</button>
       </form>
 
-      <table className="crudTable"><thead>
-        <tr><th>ID</th><th>Name</th><th>Color</th><th style={{width:140}}>Actions</th></tr>
-      </thead><tbody>
-        {rows.map(b => (
-          <tr key={b.id}>
-            <td>{b.id}</td>
-            <td>
-              {editId===b.id
-                ? <input value={edit.name} onChange={e=>setEdit({...edit, name:e.target.value})} />
-                : b.name}
-            </td>
-            <td>
-              {editId===b.id
-                ? <input value={edit.color} onChange={e=>setEdit({...edit, color:e.target.value})} />
-                : (b.color || <span className="muted">—</span>)}
-            </td>
-            <td className="rowActions">
-              {editId===b.id
-                ? (<>
-                    <button className="primary" onClick={()=>save(b.id)}>Save</button>
-                    <button onClick={()=>{setEditId(null); setEdit({})}}>Cancel</button>
-                  </>)
-                : (<>
-                    <button onClick={()=>startEdit(b)}>Edit</button>
-                    <button onClick={()=>remove(b.id)}>Delete</button>
-                  </>)
-              }
-            </td>
-          </tr>
-        ))}
-      </tbody></table>
-    </div>
+      <div className="tableWrap">
+        <table className="adminTable">
+          <thead>
+            <tr><th>ID</th><th>Name</th><th>Color</th><th className="ta-right">Actions</th></tr>
+          </thead>
+          <tbody>
+            {rows.map(b => (
+              <tr key={b.id}>
+                <td>{b.id}</td>
+                <td>
+                  {editId===b.id
+                    ? <input value={edit.name} onChange={e=>setEdit({...edit, name:e.target.value})} />
+                    : b.name}
+                </td>
+                <td className="bankColorCell">
+                  {editId===b.id
+                    ? <input value={edit.color} onChange={e=>setEdit({...edit, color:e.target.value})} />
+                    : <>
+                        <span className="colorDot" style={{ background:b.color || '#e2e8f0' }} />
+                        {b.color || <span className="muted">—</span>}
+                      </>}
+                </td>
+                <td className="rowActions">
+                  {editId===b.id
+                    ? (<>
+                        <button className="btn btn--primary" onClick={()=>save(b.id)}>Save</button>
+                        <button className="btn" onClick={()=>{setEditId(null); setEdit({})}}>Cancel</button>
+                      </>)
+                    : (<>
+                        <button className="btn" onClick={()=>startEdit(b)}>Edit</button>
+                        <button className="btn btn--danger" onClick={()=>remove(b.id)}>Delete</button>
+                      </>)
+                  }
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   )
 }
 
-/* ---------- Projects ---------- */
+/* =========================================================
+   Projects
+   ========================================================= */
 
 function ProjectsManager({ banks, onChange }) {
   const [rows, setRows] = useState([])
@@ -117,7 +139,7 @@ function ProjectsManager({ banks, onChange }) {
   const [editId, setEditId] = useState(null)
   const [edit, setEdit] = useState({})
 
-  const [load] = useAsync(async () => {
+  const [load, loading] = useAsync(async () => {
     const data = await fetchProjects()
     setRows(data || [])
   }, [setRows])
@@ -149,58 +171,74 @@ function ProjectsManager({ banks, onChange }) {
   }
 
   return (
-    <div className="crudCard">
-      <div className="crudCardHead"><b>Projects</b></div>
+    <section className="adminCard">
+      <header className="adminCard__head">
+        <div>
+          <h3 className="adminCard__title">Projects</h3>
+          <p className="adminCard__sub">Link projects to banks and manage the portfolio.</p>
+        </div>
+        <div className="adminCard__meta">{loading ? 'Loading…' : `${rows.length} total`}</div>
+      </header>
+
       <form className="formRow" onSubmit={submit}>
-        <input placeholder="Project name" value={form.name} onChange={e=>setForm({...form, name:e.target.value})} />
-        <select value={form.bankId} onChange={e=>setForm({...form, bankId:e.target.value})}>
+        <label className="sr-only" htmlFor="projectName">Project name</label>
+        <input id="projectName" placeholder="Project name" value={form.name} onChange={e=>setForm({...form, name:e.target.value})} />
+        <label className="sr-only" htmlFor="projectBank">Bank</label>
+        <select id="projectBank" value={form.bankId} onChange={e=>setForm({...form, bankId:e.target.value})}>
           <option value="">Bank…</option>
           {banks.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
         </select>
-        <button className="primary" type="submit">Add</button>
+        <button className="btn btn--primary" type="submit">Add</button>
       </form>
 
-      <table className="crudTable"><thead>
-        <tr><th>ID</th><th>Name</th><th>Bank</th><th style={{width:160}}>Actions</th></tr>
-      </thead><tbody>
-        {rows.map(r => (
-          <tr key={r.id}>
-            <td>{r.id}</td>
-            <td>
-              {editId===r.id
-                ? <input value={edit.name} onChange={e=>setEdit({...edit, name:e.target.value})} />
-                : r.name}
-            </td>
-            <td>
-              {editId===r.id
-                ? (
-                  <select value={edit.bankId} onChange={e=>setEdit({...edit, bankId:e.target.value})}>
-                    <option value="">Bank…</option>
-                    {banks.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                )
-                : (banks.find(b=>b.id===r.bankId)?.name || r.bankId)}
-            </td>
-            <td className="rowActions">
-              {editId===r.id
-                ? (<>
-                    <button className="primary" onClick={()=>save(r.id)}>Save</button>
-                    <button onClick={()=>{setEditId(null); setEdit({})}}>Cancel</button>
-                  </>)
-                : (<>
-                    <button onClick={()=>startEdit(r)}>Edit</button>
-                    <button onClick={()=>remove(r.id)}>Delete</button>
-                  </>)
-              }
-            </td>
-          </tr>
-        ))}
-      </tbody></table>
-    </div>
+      <div className="tableWrap">
+        <table className="adminTable">
+          <thead>
+            <tr><th>ID</th><th>Name</th><th>Bank</th><th className="ta-right">Actions</th></tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.id}>
+                <td>{r.id}</td>
+                <td>
+                  {editId===r.id
+                    ? <input value={edit.name} onChange={e=>setEdit({...edit, name:e.target.value})} />
+                    : r.name}
+                </td>
+                <td>
+                  {editId===r.id
+                    ? (
+                      <select value={edit.bankId} onChange={e=>setEdit({...edit, bankId:e.target.value})}>
+                        <option value="">Bank…</option>
+                        {banks.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      </select>
+                    )
+                    : (banks.find(b=>b.id===r.bankId)?.name || r.bankId)}
+                </td>
+                <td className="rowActions">
+                  {editId===r.id
+                    ? (<>
+                        <button className="btn btn--primary" onClick={()=>save(r.id)}>Save</button>
+                        <button className="btn" onClick={()=>{setEditId(null); setEdit({})}}>Cancel</button>
+                      </>)
+                    : (<>
+                        <button className="btn" onClick={()=>startEdit(r)}>Edit</button>
+                        <button className="btn btn--danger" onClick={()=>remove(r.id)}>Delete</button>
+                      </>)
+                  }
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   )
 }
 
-/* ---------- Phases ---------- */
+/* =========================================================
+   Phases
+   ========================================================= */
 
 function PhasesManager({ projects, onChange }) {
   const [rowsByProject, setRowsByProject] = useState({})
@@ -217,9 +255,7 @@ function PhasesManager({ projects, onChange }) {
   }, [])
 
   useEffect(() => {
-    if (projects.length && !selectedProject) {
-      setSelectedProject(String(projects[0].id))
-    }
+    if (projects.length && !selectedProject) setSelectedProject(String(projects[0].id))
   }, [projects, selectedProject])
 
   useEffect(() => { if (selectedProject) loadFor(parseInt(selectedProject,10)) }, [selectedProject, loadFor])
@@ -254,58 +290,74 @@ function PhasesManager({ projects, onChange }) {
   }
 
   return (
-    <div className="crudCard">
-      <div className="crudCardHead"><b>Phases</b></div>
+    <section className="adminCard">
+      <header className="adminCard__head">
+        <div>
+          <h3 className="adminCard__title">Phases</h3>
+          <p className="adminCard__sub">Define work packages per project with estimated effort.</p>
+        </div>
+      </header>
+
       <div className="formRow">
-        <select value={selectedProject} onChange={(e)=>setSelectedProject(e.target.value)}>
+        <label className="sr-only" htmlFor="phaseProject">Project</label>
+        <select id="phaseProject" value={selectedProject} onChange={(e)=>setSelectedProject(e.target.value)}>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
       <form className="formRow" onSubmit={submit}>
-        <input placeholder="Phase title" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} />
-        <input type="number" min="1" step="1" placeholder="Estimated days" value={form.estimatedDays}
+        <label className="sr-only" htmlFor="phaseTitle">Phase title</label>
+        <input id="phaseTitle" placeholder="Phase title" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} />
+        <label className="sr-only" htmlFor="phaseDays">Estimated days</label>
+        <input id="phaseDays" type="number" min="1" step="1" placeholder="Estimated days" value={form.estimatedDays}
                onChange={e=>setForm({...form, estimatedDays:e.target.value})} />
-        <button className="primary" type="submit">Add</button>
+        <button className="btn btn--primary" type="submit">Add</button>
       </form>
 
-      <table className="crudTable"><thead>
-        <tr><th>ID</th><th>Title</th><th>Estimated days</th><th style={{width:160}}>Actions</th></tr>
-      </thead><tbody>
-        {rows.map(r => (
-          <tr key={r.id}>
-            <td>{r.id}</td>
-            <td>
-              {editId===r.id
-                ? <input value={edit.title} onChange={e=>setEdit({...edit, title:e.target.value})} />
-                : r.title}
-            </td>
-            <td>
-              {editId===r.id
-                ? <input type="number" min="1" step="1" value={edit.estimatedDays}
-                         onChange={e=>setEdit({...edit, estimatedDays:e.target.value})} />
-                : r.estimatedDays}
-            </td>
-            <td className="rowActions">
-              {editId===r.id
-                ? (<>
-                    <button className="primary" onClick={()=>save(r.id)}>Save</button>
-                    <button onClick={()=>{setEditId(null); setEdit({})}}>Cancel</button>
-                  </>)
-                : (<>
-                    <button onClick={()=>startEdit(r)}>Edit</button>
-                    <button onClick={()=>remove(r.id)}>Delete</button>
-                  </>)
-              }
-            </td>
-          </tr>
-        ))}
-      </tbody></table>
-    </div>
+      <div className="tableWrap">
+        <table className="adminTable">
+          <thead>
+            <tr><th>ID</th><th>Title</th><th>Estimated days</th><th className="ta-right">Actions</th></tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.id}>
+                <td>{r.id}</td>
+                <td>
+                  {editId===r.id
+                    ? <input value={edit.title} onChange={e=>setEdit({...edit, title:e.target.value})} />
+                    : r.title}
+                </td>
+                <td>
+                  {editId===r.id
+                    ? <input type="number" min="1" step="1" value={edit.estimatedDays}
+                             onChange={e=>setEdit({...edit, estimatedDays:e.target.value})} />
+                    : r.estimatedDays}
+                </td>
+                <td className="rowActions">
+                  {editId===r.id
+                    ? (<>
+                        <button className="btn btn--primary" onClick={()=>save(r.id)}>Save</button>
+                        <button className="btn" onClick={()=>{setEditId(null); setEdit({})}}>Cancel</button>
+                      </>)
+                    : (<>
+                        <button className="btn" onClick={()=>startEdit(r)}>Edit</button>
+                        <button className="btn btn--danger" onClick={()=>remove(r.id)}>Delete</button>
+                      </>)
+                  }
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   )
 }
 
-/* ---------- Tasks ---------- */
+/* =========================================================
+   Tasks
+   ========================================================= */
 
 function TasksManager({ projects, phasesByProject, onChange }) {
   const [selectedProject, setSelectedProject] = useState('')
@@ -317,7 +369,7 @@ function TasksManager({ projects, phasesByProject, onChange }) {
   const [editId, setEditId] = useState(null)
   const [edit, setEdit] = useState({})
 
-  const [load] = useAsync(async () => {
+  const [load, loading] = useAsync(async () => {
     const data = await fetchTasks()
     setRows(data || [])
   }, [])
@@ -383,11 +435,18 @@ function TasksManager({ projects, phasesByProject, onChange }) {
   }
 
   return (
-    <div className="crudCard">
-      <div className="crudCardHead"><b>Tasks</b></div>
+    <section className="adminCard">
+      <header className="adminCard__head">
+        <div>
+          <h3 className="adminCard__title">Tasks</h3>
+          <p className="adminCard__sub">Create tasks and link them to projects and (optionally) phases.</p>
+        </div>
+        <div className="adminCard__meta">{loading ? 'Loading…' : `${rows.length} total`}</div>
+      </header>
 
       <div className="formRow">
-        <select value={selectedProject} onChange={(e)=>setSelectedProject(e.target.value)}>
+        <label className="sr-only" htmlFor="taskProjectSel">Project</label>
+        <select id="taskProjectSel" value={selectedProject} onChange={(e)=>setSelectedProject(e.target.value)}>
           {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
@@ -408,66 +467,77 @@ function TasksManager({ projects, phasesByProject, onChange }) {
                onChange={e=>setForm({...form, durationDays:e.target.value})} />
         <input type="number" min="0" step="1" placeholder="Status" value={form.status}
                onChange={e=>setForm({...form, status:e.target.value})} />
-        <button className="primary" type="submit">Add</button>
+        <button className="btn btn--primary" type="submit">Add</button>
       </form>
 
-      <table className="crudTable"><thead>
-        <tr><th>ID</th><th>Title</th><th>Project</th><th>Phase</th><th>Est.</th><th>Start</th><th>Dur.</th><th>Status</th><th style={{width:200}}>Actions</th></tr>
-      </thead><tbody>
-        {rows.map(r => (
-          <tr key={r.id}>
-            <td>{r.id}</td>
-            <td>{editId===r.id ? <input value={edit.title} onChange={e=>setEdit({...edit, title:e.target.value})} /> : r.title}</td>
-            <td>
-              {editId===r.id
-                ? (
-                  <select value={edit.projectId} onChange={e=>setEdit({...edit, projectId:e.target.value})}>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                )
-                : (projects.find(p=>p.id===r.projectId)?.name || r.projectId)}
-            </td>
-            <td>
-              {editId===r.id
-                ? (
-                  <select value={edit.phaseId || ''} onChange={e=>setEdit({...edit, phaseId:e.target.value})}>
-                    <option value="">—</option>
-                    {(phasesByProject[edit.projectId] || []).map(ph => <option key={ph.id} value={ph.id}>{ph.title}</option>)}
-                  </select>
-                )
-                : (r.phaseId || <span className="muted">—</span>)}
-            </td>
-            <td>{editId===r.id ? <input type="number" min="1" step="1" value={edit.estimatedDays}
-                                        onChange={e=>setEdit({...edit, estimatedDays:e.target.value})} />
-                                : (r.estimatedDays ?? <span className="muted">—</span>)}</td>
-            <td>{editId===r.id ? <input type="date" value={edit.startDate} onChange={e=>setEdit({...edit, startDate:e.target.value})} />
-                                : (r.startDate ? r.startDate.slice(0,10) : <span className="muted">—</span>)}</td>
-            <td>{editId===r.id ? <input type="number" min="1" step="1" value={edit.durationDays}
-                                        onChange={e=>setEdit({...edit, durationDays:e.target.value})} />
-                                : (r.durationDays ?? <span className="muted">—</span>)}</td>
-            <td>{editId===r.id ? <input type="number" min="0" step="1" value={edit.status}
-                                        onChange={e=>setEdit({...edit, status:e.target.value})} />
-                                : (r.status ?? 0)}</td>
-            <td className="rowActions">
-              {editId===r.id
-                ? (<>
-                    <button className="primary" onClick={()=>save(r.id)}>Save</button>
-                    <button onClick={()=>{setEditId(null); setEdit({})}}>Cancel</button>
-                  </>)
-                : (<>
-                    <button onClick={()=>startEdit(r)}>Edit</button>
-                    <button onClick={()=>remove(r.id)}>Delete</button>
-                  </>)
-              }
-            </td>
-          </tr>
-        ))}
-      </tbody></table>
-    </div>
+      <div className="tableWrap">
+        <table className="adminTable">
+          <thead>
+            <tr>
+              <th>ID</th><th>Title</th><th>Project</th><th>Phase</th>
+              <th>Est.</th><th>Start</th><th>Dur.</th><th>Status</th>
+              <th className="ta-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.id}>
+                <td>{r.id}</td>
+                <td>{editId===r.id ? <input value={edit.title} onChange={e=>setEdit({...edit, title:e.target.value})} /> : r.title}</td>
+                <td>
+                  {editId===r.id
+                    ? (
+                      <select value={edit.projectId} onChange={e=>setEdit({...edit, projectId:e.target.value})}>
+                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    )
+                    : (projects.find(p=>p.id===r.projectId)?.name || r.projectId)}
+                </td>
+                <td>
+                  {editId===r.id
+                    ? (
+                      <select value={edit.phaseId || ''} onChange={e=>setEdit({...edit, phaseId:e.target.value})}>
+                        <option value="">—</option>
+                        {(phasesByProject[edit.projectId] || []).map(ph => <option key={ph.id} value={ph.id}>{ph.title}</option>)}
+                      </select>
+                    )
+                    : (r.phaseId || <span className="muted">—</span>)}
+                </td>
+                <td>{editId===r.id ? <input type="number" min="1" step="1" value={edit.estimatedDays}
+                                            onChange={e=>setEdit({...edit, estimatedDays:e.target.value})} />
+                                    : (r.estimatedDays ?? <span className="muted">—</span>)}</td>
+                <td>{editId===r.id ? <input type="date" value={edit.startDate} onChange={e=>setEdit({...edit, startDate:e.target.value})} />
+                                    : (r.startDate ? r.startDate.slice(0,10) : <span className="muted">—</span>)}</td>
+                <td>{editId===r.id ? <input type="number" min="1" step="1" value={edit.durationDays}
+                                            onChange={e=>setEdit({...edit, durationDays:e.target.value})} />
+                                    : (r.durationDays ?? <span className="muted">—</span>)}</td>
+                <td>{editId===r.id ? <input type="number" min="0" step="1" value={edit.status}
+                                            onChange={e=>setEdit({...edit, status:e.target.value})} />
+                                    : (r.status ?? 0)}</td>
+                <td className="rowActions">
+                  {editId===r.id
+                    ? (<>
+                        <button className="btn btn--primary" onClick={()=>save(r.id)}>Save</button>
+                        <button className="btn" onClick={()=>{setEditId(null); setEdit({})}}>Cancel</button>
+                      </>)
+                    : (<>
+                        <button className="btn" onClick={()=>startEdit(r)}>Edit</button>
+                        <button className="btn btn--danger" onClick={()=>remove(r.id)}>Delete</button>
+                      </>)
+                  }
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   )
 }
 
-/* ---------- Page ---------- */
+/* =========================================================
+   Page container
+   ========================================================= */
 
 export default function Management() {
   const [banks, setBanks] = useState([])
@@ -487,23 +557,23 @@ export default function Management() {
 
   return (
     <div className="adminWrap">
-      <h2>Administration</h2>
-      <p className="muted">Manage banks, projects, phases and tasks. All changes are live.</p>
+      <header className="adminHeader">
+        <div>
+          <h2 className="adminTitle">Administration</h2>
+          <p className="adminSubtitle">Banks, projects, phases & tasks — enterprise-ready CRUD, clean and fast.</p>
+        </div>
+        <div className="adminActions">
+          <button className="btn" onClick={refreshAll}>Refresh all</button>
+        </div>
+      </header>
 
       <BanksManager onChange={refreshAll} />
 
       <ProjectsManager banks={banks} onChange={refreshAll} />
 
-      <PhasesManager
-        projects={projects}
-        onChange={refreshAll}
-      />
+      <PhasesManager projects={projects} onChange={refreshAll} />
 
-      <TasksManager
-        projects={projects}
-        phasesByProject={phasesByProject}
-        onChange={refreshAll}
-      />
+      <TasksManager projects={projects} phasesByProject={phasesByProject} onChange={refreshAll} />
     </div>
   )
 }
