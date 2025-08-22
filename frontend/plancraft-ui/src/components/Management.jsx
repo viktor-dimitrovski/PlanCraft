@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
-import '../styles/admin.css' // ⬅️ separate, page-specific styles
+import '../styles/admin.css'
 
 import {
   fetchBanks, createBank, updateBank, deleteBank,
@@ -8,7 +8,7 @@ import {
   fetchTasks, apiCreateTask, updateTask, deleteTask
 } from '../lib/api'
 
-/* ---------- shared helpers ---------- */
+/* ---------- helpers ---------- */
 
 const iso = (d) => {
   try {
@@ -237,16 +237,33 @@ function ProjectsManager({ banks, onChange }) {
 }
 
 /* =========================================================
-   Phases
+   Phases  (Bank → Project → Add)
    ========================================================= */
 
-function PhasesManager({ projects, onChange }) {
+function PhasesManager({ banks, projects, onChange }) {
   const [rowsByProject, setRowsByProject] = useState({})
+  const [selectedBank, setSelectedBank] = useState('')
   const [selectedProject, setSelectedProject] = useState('')
 
-  const [form, setForm] = useState({ title: '', estimatedDays: 5 })
-  const [editId, setEditId] = useState(null)
-  const [edit, setEdit] = useState({})
+  const projectsByBank = useMemo(
+    () => (bankId) => (projects || []).filter(p => p.bankId === bankId),
+    [projects]
+  )
+
+  useEffect(() => {
+    // default: first bank that has projects
+    if (!selectedBank && banks.length) {
+      const bankWithProj = banks.find(b => projects.some(p => p.bankId === b.id)) || banks[0]
+      setSelectedBank(String(bankWithProj.id))
+    }
+  }, [banks, projects, selectedBank])
+
+  useEffect(() => {
+    const bankId = parseInt(selectedBank, 10)
+    if (!Number.isFinite(bankId)) return
+    const list = projectsByBank(bankId)
+    if (list.length && !selectedProject) setSelectedProject(String(list[0].id))
+  }, [selectedBank, projectsByBank, selectedProject])
 
   const loadFor = useCallback(async (projectId) => {
     if (!projectId) return
@@ -254,13 +271,13 @@ function PhasesManager({ projects, onChange }) {
     setRowsByProject(s => ({ ...s, [projectId]: phases || [] }))
   }, [])
 
-  useEffect(() => {
-    if (projects.length && !selectedProject) setSelectedProject(String(projects[0].id))
-  }, [projects, selectedProject])
-
   useEffect(() => { if (selectedProject) loadFor(parseInt(selectedProject,10)) }, [selectedProject, loadFor])
 
   const rows = useMemo(() => rowsByProject[parseInt(selectedProject,10)] || [], [rowsByProject, selectedProject])
+
+  const [form, setForm] = useState({ title: '', estimatedDays: 5 })
+  const [editId, setEditId] = useState(null)
+  const [edit, setEdit] = useState({})
 
   const submit = async (e) => {
     e.preventDefault()
@@ -275,41 +292,44 @@ function PhasesManager({ projects, onChange }) {
 
   const startEdit = (r) => { setEditId(r.id); setEdit({ title: r.title, estimatedDays: r.estimatedDays }) }
   const save = async (id) => {
-    const pid = parseInt(selectedProject,10)
     if (!edit.title.trim()) { alert('Title is required'); return }
     const days = parseInt(edit.estimatedDays,10); if (!Number.isFinite(days) || days <= 0) { alert('Estimated days must be > 0'); return }
     await updatePhase(id, { title: edit.title.trim(), estimatedDays: days })
     setEditId(null); setEdit({})
-    await loadFor(pid); onChange?.()
+    await loadFor(parseInt(selectedProject,10)); onChange?.()
   }
   const remove = async (id) => {
     if (!confirm('Delete this phase?')) return
-    const pid = parseInt(selectedProject,10)
     await deletePhase(id)
-    await loadFor(pid); onChange?.()
+    await loadFor(parseInt(selectedProject,10)); onChange?.()
   }
+
+  const bankProjects = projectsByBank(parseInt(selectedBank,10))
 
   return (
     <section className="adminCard">
       <header className="adminCard__head">
         <div>
           <h3 className="adminCard__title">Phases</h3>
-          <p className="adminCard__sub">Define work packages per project with estimated effort.</p>
+          <p className="adminCard__sub">Add phases under a specific bank & project.</p>
         </div>
       </header>
 
       <div className="formRow">
+        <label className="sr-only" htmlFor="phaseBank">Bank</label>
+        <select id="phaseBank" value={selectedBank} onChange={(e)=>{ setSelectedBank(e.target.value); setSelectedProject('') }}>
+          {banks.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+
         <label className="sr-only" htmlFor="phaseProject">Project</label>
         <select id="phaseProject" value={selectedProject} onChange={(e)=>setSelectedProject(e.target.value)}>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {bankProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
       <form className="formRow" onSubmit={submit}>
-        <label className="sr-only" htmlFor="phaseTitle">Phase title</label>
-        <input id="phaseTitle" placeholder="Phase title" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} />
-        <label className="sr-only" htmlFor="phaseDays">Estimated days</label>
-        <input id="phaseDays" type="number" min="1" step="1" placeholder="Estimated days" value={form.estimatedDays}
+        <input placeholder="Phase title" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} />
+        <input type="number" min="1" step="1" placeholder="Estimated days" value={form.estimatedDays}
                onChange={e=>setForm({...form, estimatedDays:e.target.value})} />
         <button className="btn btn--primary" type="submit">Add</button>
       </form>
@@ -356,13 +376,38 @@ function PhasesManager({ projects, onChange }) {
 }
 
 /* =========================================================
-   Tasks
+   Tasks  (Bank → Project → Phase → Add)
    ========================================================= */
 
-function TasksManager({ projects, phasesByProject, onChange }) {
-  const [selectedProject, setSelectedProject] = useState('')
-  const [rows, setRows] = useState([])
+function TasksManager({ banks, projects, phasesByProject, onChange }) {
+  // Selection for the add form
+  const [selBank, setSelBank] = useState('')
+  const [selProject, setSelProject] = useState('')
 
+  useEffect(() => {
+    if (!selBank && banks.length) {
+      const bankWithProj = banks.find(b => projects.some(p => p.bankId === b.id)) || banks[0]
+      setSelBank(String(bankWithProj.id))
+    }
+  }, [banks, projects, selBank])
+
+  useEffect(() => {
+    const bankId = parseInt(selBank, 10)
+    if (!Number.isFinite(bankId)) return
+    const proj = projects.find(p => p.bankId === bankId)
+    if (proj && !selProject) setSelProject(String(proj.id))
+  }, [selBank, projects, selProject])
+
+  const bankProjects = useMemo(
+    () => projects.filter(p => p.bankId === parseInt(selBank,10)),
+    [projects, selBank]
+  )
+  const phases = useMemo(
+    () => phasesByProject[parseInt(selProject,10)] || [],
+    [phasesByProject, selProject]
+  )
+
+  const [rows, setRows] = useState([])
   const [form, setForm] = useState({
     title:'', projectId:'', phaseId:'', estimatedDays:5, startDate:'', durationDays:5, status:1
   })
@@ -376,17 +421,12 @@ function TasksManager({ projects, phasesByProject, onChange }) {
 
   useEffect(() => { load() }, [load])
 
-  useEffect(() => {
-    if (projects.length && !selectedProject) setSelectedProject(String(projects[0].id))
-  }, [projects, selectedProject])
-
-  const phases = useMemo(() => phasesByProject[parseInt(selectedProject,10)] || [], [phasesByProject, selectedProject])
-
   const submit = async (e) => {
     e.preventDefault()
-    const projectId = parseInt(form.projectId || selectedProject,10)
+    const projectId = parseInt(form.projectId || selProject,10)
     if (!Number.isFinite(projectId)) { alert('Select a project'); return }
     if (!form.title.trim()) { alert('Title is required'); return }
+
     const payload = {
       projectId,
       title: form.title.trim(),
@@ -445,16 +485,21 @@ function TasksManager({ projects, phasesByProject, onChange }) {
       </header>
 
       <div className="formRow">
+        <label className="sr-only" htmlFor="taskBankSel">Bank</label>
+        <select id="taskBankSel" value={selBank} onChange={(e)=>{ setSelBank(e.target.value); setSelProject('') }}>
+          {banks.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+
         <label className="sr-only" htmlFor="taskProjectSel">Project</label>
-        <select id="taskProjectSel" value={selectedProject} onChange={(e)=>setSelectedProject(e.target.value)}>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        <select id="taskProjectSel" value={selProject} onChange={(e)=>setSelProject(e.target.value)}>
+          {bankProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </div>
 
       <form className="formRow" onSubmit={submit}>
         <input placeholder="Task title" value={form.title} onChange={e=>setForm({...form, title:e.target.value})} />
-        <select value={form.projectId || selectedProject} onChange={e=>setForm({...form, projectId:e.target.value})}>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        <select value={form.projectId || selProject} onChange={e=>setForm({...form, projectId:e.target.value})}>
+          {bankProjects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <select value={form.phaseId} onChange={e=>setForm({...form, phaseId:e.target.value})}>
           <option value="">Phase (optional)</option>
@@ -488,10 +533,18 @@ function TasksManager({ projects, phasesByProject, onChange }) {
                   {editId===r.id
                     ? (
                       <select value={edit.projectId} onChange={e=>setEdit({...edit, projectId:e.target.value})}>
-                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        {projects.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} — { (banks.find(b=>b.id===p.bankId)?.name) || p.bankId }
+                          </option>
+                        ))}
                       </select>
                     )
-                    : (projects.find(p=>p.id===r.projectId)?.name || r.projectId)}
+                    : (() => {
+                        const p = projects.find(p=>p.id===r.projectId)
+                        const b = p ? banks.find(b=>b.id===p.bankId) : null
+                        return p ? `${p.name} — ${b?.name ?? p.bankId}` : r.projectId
+                      })()}
                 </td>
                 <td>
                   {editId===r.id
@@ -536,10 +589,12 @@ function TasksManager({ projects, phasesByProject, onChange }) {
 }
 
 /* =========================================================
-   Page container
+   Admin page with tabs & centered container
    ========================================================= */
 
 export default function Management() {
+  const [tab, setTab] = useState('banks') // banks | projects | phases | tasks
+
   const [banks, setBanks] = useState([])
   const [projects, setProjects] = useState([])
   const [phasesByProject, setPhasesByProject] = useState({})
@@ -557,23 +612,28 @@ export default function Management() {
 
   return (
     <div className="adminWrap">
-      <header className="adminHeader">
-        <div>
-          <h2 className="adminTitle">Administration</h2>
-          <p className="adminSubtitle">Banks, projects, phases & tasks — enterprise-ready CRUD, clean and fast.</p>
-        </div>
-        <div className="adminActions">
-          <button className="btn" onClick={refreshAll}>Refresh all</button>
-        </div>
-      </header>
+      <div className="adminContainer">
+        <header className="adminHeader">
+          <div>
+            <h2 className="adminTitle">Administration</h2>
+            <p className="adminSubtitle">Banks, projects, phases & tasks — enterprise-ready CRUD.</p>
+          </div>
+          <div className="adminActions">
+            <div className="adminTabs">
+              <button className={`tabBtn ${tab==='banks'?'active':''}`} onClick={()=>setTab('banks')}>Banks</button>
+              <button className={`tabBtn ${tab==='projects'?'active':''}`} onClick={()=>setTab('projects')}>Projects</button>
+              <button className={`tabBtn ${tab==='phases'?'active':''}`} onClick={()=>setTab('phases')}>Phases</button>
+              <button className={`tabBtn ${tab==='tasks'?'active':''}`} onClick={()=>setTab('tasks')}>Tasks</button>
+            </div>
+            <button className="btn" onClick={refreshAll}>Refresh all</button>
+          </div>
+        </header>
 
-      <BanksManager onChange={refreshAll} />
-
-      <ProjectsManager banks={banks} onChange={refreshAll} />
-
-      <PhasesManager projects={projects} onChange={refreshAll} />
-
-      <TasksManager projects={projects} phasesByProject={phasesByProject} onChange={refreshAll} />
+        {tab==='banks'    && <BanksManager onChange={refreshAll} />}
+        {tab==='projects' && <ProjectsManager banks={banks} onChange={refreshAll} />}
+        {tab==='phases'   && <PhasesManager banks={banks} projects={projects} onChange={refreshAll} />}
+        {tab==='tasks'    && <TasksManager banks={banks} projects={projects} phasesByProject={phasesByProject} onChange={refreshAll} />}
+      </div>
     </div>
   )
 }
