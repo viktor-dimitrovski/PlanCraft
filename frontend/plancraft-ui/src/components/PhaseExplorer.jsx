@@ -1,19 +1,40 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
-import { fetchProjects, getPhases, addPhase } from '../lib/api'
+import { fetchProjects, getPhases, addPhase, fetchBanks, fetchTasks } from '../lib/api'
 import { useDraggable } from '@dnd-kit/core'
 
+/* Deterministic soft color if bank has no color in DTO */
+function colorFromSeed(seed) {
+  const s = (typeof seed === 'number' ? seed : String(seed || '')).toString()
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360
+  return `hsl(${h}deg 60% 85%)`
+}
+
 function PhaseChip({ phase, scheduled }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `phase:${phase.id}`, data: { phase } })
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `phase:${phase.id}`,
+    data: { phase },
+    disabled: scheduled,
+  })
+
   const style = {
-    padding:'6px 8px', border:'1px solid var(--border)', borderRadius:8, margin:'4px 0',
-    background:'#fff', cursor: scheduled ? 'not-allowed' : 'grab',
-    opacity: scheduled ? .55 : 1, boxShadow: isDragging ? '0 6px 20px rgba(2,6,23,.12)' : 'none'
+    padding:'6px 8px',
+    border:'1px solid var(--stroke)',
+    borderRadius:12,
+    margin:'4px 0',
+    background:'#fff',
+    cursor: scheduled ? 'not-allowed' : (isDragging ? 'grabbing' : 'grab'),
+    opacity: scheduled ? .55 : (isDragging ? 0 : 1), // hide original while DragOverlay shows preview
+    boxShadow: '0 1px 1px rgba(2,6,23,.03)',
+    touchAction: 'none',
   }
   const props = scheduled ? {} : { ...attributes, ...listeners }
+
   return (
-    <div ref={setNodeRef} {...props} className={`phaseChip ${scheduled ? 'scheduled' : ''}`}>
-      {phase.title} <span style={{color:'var(--muted)'}}>({phase.estimatedDays}d)</span>
-      {scheduled && <span style={{ marginLeft: 8, fontSize: 11, color: '#b45309' }}>• scheduled</span>}
+    <div ref={setNodeRef} {...props} style={style} className={`phaseChip ${scheduled ? 'scheduled' : ''}`}>
+      <span className="grip" aria-hidden>⋮⋮</span>
+      {phase.title} <span className="muted-2">({phase.estimatedDays}d)</span>
+      {scheduled && <span className="lock" title="Already scheduled">🔒</span>}
     </div>
   )
 }
@@ -21,8 +42,13 @@ function PhaseChip({ phase, scheduled }) {
 export default function PhaseExplorer(){
   const [projects, setProjects] = useState([])
   const [phasesByProject, setPhasesByProject] = useState({})
+
+  // Banks (id -> { name, color })
+  const [bankMap, setBankMap] = useState(new Map())
+
+  // Phases that are already scheduled (hide to prevent duplicates)
   const [scheduledPhaseIds, setScheduledPhaseIds] = useState(new Set())
-  const [hideScheduled, setHideScheduled] = useState(true)
+
   const [search, setSearch] = useState('')
   const [openBanks, setOpenBanks] = useState({})
   const [openProjects, setOpenProjects] = useState({})
@@ -31,16 +57,35 @@ export default function PhaseExplorer(){
   const loadAll = useCallback(async () => {
     setLoading(true)
     try {
+      // 1) Banks
+      try {
+        const banks = await fetchBanks()
+        const map = new Map()
+        for (const b of banks || []) {
+          map.set(b.id, { name: b.name, color: b.color || colorFromSeed(b.id) })
+        }
+        setBankMap(map)
+      } catch {
+        setBankMap(new Map())
+      }
+
+      // 2) Projects
       const ps = await fetchProjects()
       setProjects(ps)
+
+      // 3) Phases per project
       const map = {}
-      for (const p of ps) {
-        map[p.id] = await getPhases(p.id)
-      }
+      for (const p of ps) map[p.id] = await getPhases(p.id)
       setPhasesByProject(map)
 
-      // scheduledPhaseIds will stay empty until tasks endpoint has an explicit API wrapper
-      setScheduledPhaseIds(new Set())
+      // 4) Scheduled phases from tasks (expects tasks carry phaseId)
+      try {
+        const tasks = await fetchTasks()
+        const ids = new Set((tasks || []).filter(t => t.phaseId != null).map(t => t.phaseId))
+        setScheduledPhaseIds(ids)
+      } catch {
+        setScheduledPhaseIds(new Set())
+      }
     } finally {
       setLoading(false)
     }
@@ -48,27 +93,50 @@ export default function PhaseExplorer(){
 
   useEffect(() => { loadAll() }, [loadAll])
 
+  // Keep in sync with grid actions (schedule/unschedule)
   useEffect(() => {
     const onChanged = () => loadAll()
+
+    const onPhaseScheduled = (e) => {
+      const id = e?.detail?.phaseId
+      if (typeof id === 'number') {
+        setScheduledPhaseIds(prev => {
+          const next = new Set(prev); next.add(id); return next
+        })
+      }
+    }
+    const onPhaseUnscheduled = (e) => {
+      const id = e?.detail?.phaseId
+      if (typeof id === 'number') {
+        setScheduledPhaseIds(prev => {
+          const next = new Set(prev); next.delete(id); return next
+        })
+      }
+    }
+
     window.addEventListener('plancraft:projectsChanged', onChanged)
     window.addEventListener('plancraft:refresh', onChanged)
+    window.addEventListener('plancraft:phaseScheduled', onPhaseScheduled)
+    window.addEventListener('plancraft:phaseUnscheduled', onPhaseUnscheduled)
     return () => {
       window.removeEventListener('plancraft:projectsChanged', onChanged)
       window.removeEventListener('plancraft:refresh', onChanged)
+      window.removeEventListener('plancraft:phaseScheduled', onPhaseScheduled)
+      window.removeEventListener('plancraft:phaseUnscheduled', onPhaseUnscheduled)
     }
   }, [loadAll])
 
+  /* Group projects by bankId using real bank names/colors */
   const grouped = useMemo(() => {
-    const byBank = new Map()
+    const groups = new Map()
     for (const p of projects) {
-      const bKey = p.bankId || 0
-      const bankName = p.bank?.name || 'Unassigned bank'
-      const bankColor = p.bank?.color || '#94a3b8'
-      if (!byBank.has(bKey)) byBank.set(bKey, { bankName, bankColor, projects: [] })
-      byBank.get(bKey).projects.push(p)
+      const id = p.bankId
+      const info = bankMap.get(id) || { name: `Bank #${id}`, color: colorFromSeed(id) }
+      if (!groups.has(id)) groups.set(id, { bankId: id, bankName: info.name, bankColor: info.color, projects: [] })
+      groups.get(id).projects.push(p)
     }
-    return Array.from(byBank.entries()).map(([bankId, val]) => ({ bankId, ...val }))
-  }, [projects])
+    return Array.from(groups.values())
+  }, [projects, bankMap])
 
   const onAdd = async (projectId) => {
     const title = prompt('Phase title'); if (!title) return
@@ -88,10 +156,6 @@ export default function PhaseExplorer(){
 
       <div className="searchRow" style={{ margin:'8px 0 10px' }}>
         <input placeholder="Search project or phase…" value={search} onChange={e=>setSearch(e.target.value)} />
-        <label style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <input type="checkbox" checked={hideScheduled} onChange={e=>setHideScheduled(e.target.checked)} />
-          Hide scheduled
-        </label>
         <div/>
       </div>
 
@@ -109,12 +173,12 @@ export default function PhaseExplorer(){
                 {group.projects.map(p => {
                   const phases = (phasesByProject[p.id] || [])
                     .filter(ph => match(p.name) || match(ph.title))
-                    .filter(ph => !hideScheduled || !scheduledPhaseIds.has(ph.id))
+                    .filter(ph => !scheduledPhaseIds.has(ph.id))  // NEVER show scheduled (prevents duplicates)
                   const isOpenProj = openProjects[p.id] ?? true
                   return (
                     <div key={`proj-${p.id}`} style={{ marginBottom:6 }}>
                       <div className="projectHead" onClick={()=>setOpenProjects(s=>({ ...s, [p.id]: !isOpenProj }))}>
-                        <span className="legendDot" style={{ background: p.color || p.bank?.color || '#e2e8f0' }}></span>
+                        <span className="legendDot" style={{ background: group.bankColor }}></span>
                         <b>{p.name}</b>
                         <span className="badge" style={{ marginLeft:'auto' }}>{phases.length} phases</span>
                         <button onClick={(e)=>{ e.stopPropagation(); onAdd(p.id) }} className="primary">+ Phase</button>
@@ -122,7 +186,7 @@ export default function PhaseExplorer(){
                       {isOpenProj && (
                         <div style={{ paddingLeft:8 }}>
                           {phases.length === 0 && <div style={{ fontSize:12, color:'var(--muted)', padding:'6px 0' }}>No phases.</div>}
-                          {phases.map(ph => <PhaseChip key={ph.id} phase={ph} scheduled={scheduledPhaseIds.has(ph.id)} />)}
+                          {phases.map(ph => <PhaseChip key={ph.id} phase={ph} scheduled={false} />)}
                         </div>
                       )}
                     </div>

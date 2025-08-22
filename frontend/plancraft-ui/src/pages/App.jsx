@@ -7,14 +7,15 @@ import {
   useSensors,
   PointerSensor,
   closestCenter,
-  MeasuringStrategy,        // ⬅️ added
+  MeasuringStrategy,
+  DragOverlay,
 } from '@dnd-kit/core'
 
 import { usePlan } from '../state/usePlanStore'
 
-// ✅ use the names exactly as they exist in api.js
+// API: keep exact exported names from lib/api.js
 import {
-  fetchGrid,           // was getGrid in some drafts
+  fetchGrid,
   fetchProjects,
   moveTask,
   autobalance,
@@ -25,7 +26,7 @@ import {
   apiCreateTask,
   apiCreateAssignment,
   planPhase,
-  unscheduleTask       // was deleteTask in some drafts
+  unscheduleTask
 } from '../lib/api'
 
 import Grid from '../components/Grid.jsx'
@@ -55,6 +56,9 @@ export default function App () {
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelTask, setPanelTask] = useState(null)
 
+  // DragOverlay preview
+  const [activeDrag, setActiveDrag] = useState(null)
+
   // -------- data
   useEffect(() => { fetchProjects().then(setProjects) }, [])
 
@@ -76,14 +80,34 @@ export default function App () {
   // -------- DnD
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
+  const onDragStart = (event) => {
+    const { active } = event
+    const data = active?.data?.current
+    const id = String(active?.id || '')
+    if (id.startsWith('phase:') && data?.phase) {
+      const ph = data.phase
+      setActiveDrag({ kind: 'phase', title: ph.title, days: ph.estimatedDays ?? 5 })
+      return
+    }
+    if (id.startsWith('task:') && data?.task) {
+      const t = data.task
+      const span = t._spanFloat ?? (typeof t.estimatedDays === 'number' ? t.estimatedDays / 5 : 1)
+      setActiveDrag({ kind: 'task', title: t.title, span, color: t.projectColor })
+      return
+    }
+    setActiveDrag(null)
+  }
+
   const onDragEnd = async (event) => {
+    setActiveDrag(null)
+
     const { active, over } = event
     if (!over) return
 
     const aid = String(active.id)
     const oid = String(over.id)
 
-    // Phase from backlog → cell (schedule it)
+    // Phase from backlog → cell (schedule)
     if (aid.startsWith('phase:') && oid.startsWith('cell:')) {
       const parts = aid.split(':')
       const phaseId = parseInt(parts[1], 10)
@@ -101,6 +125,9 @@ export default function App () {
           startDateUtc: w.start,
           requiredSkills: []
         })
+        // Immediately inform backlog to hide this phase
+        window.dispatchEvent(new CustomEvent('plancraft:phaseScheduled', { detail: { phaseId } }))
+        // Normal refresh flow
         refreshGrid()
         window.dispatchEvent(new Event('plancraft:refresh'))
         window.dispatchEvent(new Event('plancraft:projectsChanged'))
@@ -111,7 +138,7 @@ export default function App () {
       return
     }
 
-    // Task moved (or copied with Alt/Ctrl) to another cell
+    // Task move/copy within grid
     if (aid.startsWith('task:') && oid.startsWith('cell:')) {
       const [, personIdStr, weekIdxStr] = oid.split(':')
       const personId = parseInt(personIdStr, 10)
@@ -154,7 +181,21 @@ export default function App () {
   }
 
   const onTaskClick = (task) => { setPanelTask(task); setPanelOpen(true) }
-  const onUnschedule = async (taskId) => { await unscheduleTask(taskId); refreshGrid() }   // ⬅️ added
+
+  // UPDATED: accepts (taskId, phaseId), dispatches phaseUnscheduled to re-show in backlog
+  const onUnschedule = async (taskId, phaseId) => {
+    try {
+      await unscheduleTask(taskId)
+      if (Number.isFinite(phaseId)) {
+        window.dispatchEvent(new CustomEvent('plancraft:phaseUnscheduled', { detail: { phaseId } }))
+      }
+    } catch (e) {
+      console.error('unscheduleTask failed:', e)
+      alert('Could not unschedule task. See console for details.')
+    } finally {
+      refreshGrid()
+    }
+  }
 
   const createScenarioNow = async () => {
     const name = prompt('Scenario name') || 'Scenario'
@@ -164,26 +205,6 @@ export default function App () {
   }
   const doCompare  = async () => { if (scenarioId) setCompare(await compareScenario(scenarioId)) }
   const doForecast = async () => { if (selectedProject) setForecastOut(await forecast(selectedProject)) }
-
-  const onCreateTask = async (personId, weekIndex, title) => {
-    const w = weeks?.[weekIndex]; if (!w) return
-    const projectId = projects[0]?.id
-    try {
-      const tRes = await apiCreateTask({
-        projectId, title,
-        estimatedDays: 5,
-        startDate: w.start,
-        durationDays: 7,
-        status: 1,
-        requiredSkills: []
-      })
-      await apiCreateAssignment({ taskId: tRes.id, personId, sharePercent: 100, isPrimary: true })
-      refreshGrid()
-    } catch (e) {
-      console.error('Quick add failed:', e)
-      alert('Could not quick-add task. Check API console.')
-    }
-  }
 
   const colCount = weeks?.length || 0
   const fromStr  = weeks?.[0]?.start?.slice?.(0,10) ?? ''
@@ -197,25 +218,14 @@ export default function App () {
       <div className="topbar">
         <div className="brand">PlanCraft</div>
         <div className="toolbar">
-          <button
-            onClick={() => setWhatIf(!whatIf)}
-            className={whatIf ? "primary" : ""}
-          >
-            {whatIf ? "What-if ON" : "What-if OFF"}
+          <button onClick={() => setWhatIf(!whatIf)} className={whatIf ? 'primary' : ''}>
+            {whatIf ? 'What-if ON' : 'What-if OFF'}
           </button>
           <button
             onClick={() =>
-              autobalance(
-                range.from.toISOString(),
-                range.to.toISOString(),
-                0.85
-              ).then((r) =>
-                alert(
-                  (r.proposals || [])
-                    .map((p) => `Task ${p.taskId}: ${p.reason}`)
-                    .join("\n") || "No proposals"
-                )
-              )
+              autobalance(range.from.toISOString(), range.to.toISOString(), 0.85)
+                .then(r => alert((r.proposals || [])
+                  .map(p => `Task ${p.taskId}: ${p.reason}`).join('\n') || 'No proposals'))
             }
           >
             Auto-balance
@@ -224,21 +234,17 @@ export default function App () {
         </div>
       </div>
 
+      {/* DnD wraps left + grid + right so backlog → grid drag works */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
+        onDragStart={onDragStart}
         onDragEnd={onDragEnd}
-        measuring={{ droppable: { strategy: MeasuringStrategy.Always } }} // ⬅️ added
         autoScroll
       >
         <div className="container">
-          <ResizableSidebar
-            side="left"
-            min={280}
-            max={560}
-            initial={320}
-            storageKey="plancraft.leftWidth"
-          >
+          <ResizableSidebar side="left" min={280} max={560} initial={320} storageKey="plancraft.leftWidth">
             <LeftDock
               projects={projects}
               hideEmpty={hideEmpty}
@@ -255,33 +261,82 @@ export default function App () {
               milestones={milestones}
               density={density}
               hideEmpty={hideEmpty}
-              onCreateTask={onCreateTask}
+              onCreateTask={async (personId, weekIndex, title) => {
+                const w = weeks?.[weekIndex]; if (!w) return
+                const projectId = projects[0]?.id
+                try {
+                  const tRes = await apiCreateTask({
+                    projectId, title,
+                    estimatedDays: 5,
+                    startDate: w.start,
+                    durationDays: 7,
+                    status: 1,
+                    requiredSkills: []
+                  })
+                  await apiCreateAssignment({ taskId: tRes.id, personId, sharePercent: 100, isPrimary: true })
+                  refreshGrid()
+                } catch (e) {
+                  console.error('Quick add failed:', e)
+                  alert('Could not quick-add task. Check API console.')
+                }
+              }}
               onTaskClick={onTaskClick}
-              onUnschedule={onUnschedule} // ⬅️ added
+              onUnschedule={onUnschedule}  // now expects (taskId, phaseId)
             />
           </div>
 
-          <ResizableSidebar
-            side="right"
-            min={260}
-            max={420}
-            initial={300}
-            storageKey="plancraft.rightWidth"
-          >
+          <ResizableSidebar side="right" min={260} max={420} initial={300} storageKey="plancraft.rightWidth">
             <Legend items={projects || []} />
             <AssignmentPanel
               open={panelOpen}
               task={panelTask}
               onClose={() => setPanelOpen(false)}
               onUnschedule={async (taskId) => {
-                await unscheduleTask(taskId);
-                setPanelOpen(false);
-                refreshGrid();
+                // use the shared handler so PhaseExplorer is informed instantly
+                await onUnschedule(taskId, panelTask?.phaseId)
+                setPanelOpen(false)
               }}
             />
           </ResizableSidebar>
         </div>
+
+        {/* Drag preview */}
+        <DragOverlay dropAnimation={null} className="dnd-overlay">
+          {activeDrag
+            ? (activeDrag.kind === 'phase'
+                ? (
+                  <div style={{
+                    padding: '6px 10px',
+                    border: '1px solid var(--stroke)',
+                    borderRadius: 12,
+                    background: '#fff',
+                    boxShadow: '0 6px 20px rgba(2,6,23,.18)',
+                    fontSize: 13
+                  }}>
+                    {activeDrag.title} <span className="muted-2">({activeDrag.days}d)</span>
+                  </div>
+                )
+                : (
+                  <div style={{
+                    border: `2px solid ${activeDrag.color || 'var(--brand)'}`,
+                    background: '#fff',
+                    borderRadius: 12,
+                    height: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '0 10px',
+                    boxShadow: '0 6px 20px rgba(2,6,23,.18)'
+                  }}>
+                    <b style={{marginRight: 6}}>{activeDrag.title}</b>
+                    <span className="muted-2">
+                      {Number.isFinite(activeDrag.span) ? `${activeDrag.span.toFixed(1)}w` : ''}
+                    </span>
+                  </div>
+                )
+              )
+            : null}
+        </DragOverlay>
       </DndContext>
     </div>
-  );
+  )
 }

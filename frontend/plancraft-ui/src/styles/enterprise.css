@@ -251,3 +251,10 @@ small{ color:var(--muted-2); }
 /* Responsive legend width adjustments */
 @media (max-width: 1200px){ :root{ --legendW: 180px; } }
 @media (max-width: 960px) { :root{ --legendW: 160px; } }
+
+/* Drag overlay above all; ignore pointer events so drops work */
+.dnd-overlay { z-index: 80; pointer-events: none; }
+
+/* Soften original card while a DragOverlay is active for it */
+.taskWrap.dragging { opacity: .2; }
+

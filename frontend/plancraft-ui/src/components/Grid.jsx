@@ -1,8 +1,5 @@
-import React, { useMemo } from 'react'
-import {
-  useDroppable,
-  useDraggable,
-} from '@dnd-kit/core'
+import React from 'react'
+import { useDroppable, useDraggable } from '@dnd-kit/core'
 
 /* -------------------- Helpers -------------------- */
 
@@ -16,7 +13,7 @@ function packLanes(tasks) {
     if (typeof t.estimatedDays === 'number') return t.estimatedDays / 5
     if (typeof t.weekSpan === 'number') return t.weekSpan
     return 1
-  }
+    }
 
   for (const t of sorted) {
     const start = t.weekIndex
@@ -31,34 +28,34 @@ function packLanes(tasks) {
       if (!intersects) { occupied.push([start, end]); break }
       laneIndex++
     }
-    placed.push({ ...t, _lane: laneIndex, _spanFloat: spanFloat(t) })
+    placed.push({ ...t, _lane: laneIndex, _spanFloat: wf })
   }
   const laneCount = Math.max(1, lanes.length)
   return { placed, laneCount }
 }
 
- // One visual “cell” tile. If droppable=false it's purely decorative.
- function WeekCell({ personId, weekIndex, laneIndex = 0, droppable = false }) {
-   if (droppable) {
-     const id = `cell:${personId}:${weekIndex}`
-     const { setNodeRef, isOver } = useDroppable({ id, data: { personId, weekIndex } })
-     return (
-       <div
-         ref={setNodeRef}
-         className={'cell' + (isOver ? ' over' : '')}
-         style={{ gridColumn: `${weekIndex + 2} / span 1`, gridRow: `${laneIndex + 1}` }}
-         aria-label={`week-${weekIndex}`}
-       />
-     )
-   }
-   return (
-     <div
-       className="cell decor"
-       style={{ gridColumn: `${weekIndex + 2} / span 1`, gridRow: `${laneIndex + 1}` }}
-       aria-hidden="true"
-     />
-   )
- }
+/* One visual “cell” tile. If droppable=false it's purely decorative. */
+function WeekCell({ personId, weekIndex, laneIndex = 0, droppable = false }) {
+  if (droppable) {
+    const id = `cell:${personId}:${weekIndex}`
+    const { setNodeRef, isOver } = useDroppable({ id, data: { personId, weekIndex } })
+    return (
+      <div
+        ref={setNodeRef}
+        className={'cell' + (isOver ? ' over' : '')}
+        style={{ gridColumn: `${weekIndex + 2} / span 1`, gridRow: `${laneIndex + 1}` }}
+        aria-label={`week-${weekIndex}`}
+      />
+    )
+  }
+  return (
+    <div
+      className="cell decor"
+      style={{ gridColumn: `${weekIndex + 2} / span 1`, gridRow: `${laneIndex + 1}` }}
+      aria-hidden="true"
+    />
+  )
+}
 
 function TaskCard({ t, onUnschedule }) {
   return (
@@ -70,7 +67,7 @@ function TaskCard({ t, onUnschedule }) {
       <button
         className="taskX"
         title="Unschedule"
-        onClick={(e) => { e.stopPropagation(); onUnschedule?.(t.id) }}   // ⬅️ added
+        onClick={(e) => { e.stopPropagation(); onUnschedule?.(t.id, t.phaseId) }} 
       >✕</button>
     </div>
   )
@@ -103,7 +100,7 @@ function TaskBar({ t, color, onUnschedule }) {
           width: `calc(${(t._spanFloat / spanInt) * 100}%)`
         }}
       >
-        <TaskCard t={t} onUnschedule={onUnschedule} />   {/* ⬅️ added */}
+        <TaskCard t={t} onUnschedule={onUnschedule} />
       </div>
     </div>
   )
@@ -113,10 +110,8 @@ export default function Grid({
   weeks = [],
   people = [],
   milestones = [],
-  onUnschedule,           // ⬅️ added (optional)
+  onUnschedule,
 }) {
-  const columnCount = (weeks?.length || 0) + 1
-
   const renderPersonRow = (p) => {
     const { placed, laneCount } = packLanes(p.tasks || [])
     const lanes = Math.max(1, laneCount)
@@ -156,7 +151,7 @@ export default function Grid({
             key={t.id}
             t={t}
             color={t.projectColor}
-            onUnschedule={onUnschedule}     // ⬅️ added
+            onUnschedule={onUnschedule}
           />
         ))}
       </div>
