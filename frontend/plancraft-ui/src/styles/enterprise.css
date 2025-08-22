@@ -256,3 +256,30 @@ small { color: var(--muted-2); }
 @media (max-width: 960px) {
   :root { --legendW: 160px; }
 }
+
+
+
+
+
+/* --- Lane tiles look like a proper grid --- */
+.personRow::before { content: none; } /* disable old lane-gradient if present */
+
+.cell {
+  height: var(--laneH);
+  background: transparent;
+  /* draw grid lines: right + bottom keeps lines single-pixel without doubling */
+  border-right: 1px solid #e9eef6;
+  border-bottom: 1px solid #e9eef6;
+  border-radius: 6px;
+  z-index: 0;
+}
+
+.cell.decor { pointer-events: none; }  /* decorative tiles never capture events */
+.taskWrap { z-index: 1; }              /* tasks sit above tiles */
+
+/* keep droppable feedback strong on the interactive (lane 0) tiles */
+.cell.over {
+  background: rgba(37,99,235,0.08);
+  outline: 2px solid rgba(37,99,235,0.25);
+  outline-offset: -1px;
+}

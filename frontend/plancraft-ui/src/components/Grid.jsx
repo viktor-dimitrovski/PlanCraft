@@ -37,19 +37,28 @@ function packLanes(tasks) {
   return { placed, laneCount }
 }
 
-function WeekCell({ personId, weekIndex }) {
-  const id = `cell:${personId}:${weekIndex}`
-  const { setNodeRef, isOver } = useDroppable({ id, data: { personId, weekIndex } })
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={'cell' + (isOver ? ' over' : '')}
-      style={{ gridColumn: `${weekIndex + 2} / span 1`, gridRow: `1 / -1` }}
-      aria-label={`week-${weekIndex}`}
-    />
-  )
-}
+ // One visual “cell” tile. If droppable=false it's purely decorative.
+ function WeekCell({ personId, weekIndex, laneIndex = 0, droppable = false }) {
+   if (droppable) {
+     const id = `cell:${personId}:${weekIndex}`
+     const { setNodeRef, isOver } = useDroppable({ id, data: { personId, weekIndex } })
+     return (
+       <div
+         ref={setNodeRef}
+         className={'cell' + (isOver ? ' over' : '')}
+         style={{ gridColumn: `${weekIndex + 2} / span 1`, gridRow: `${laneIndex + 1}` }}
+         aria-label={`week-${weekIndex}`}
+       />
+     )
+   }
+   return (
+     <div
+       className="cell decor"
+       style={{ gridColumn: `${weekIndex + 2} / span 1`, gridRow: `${laneIndex + 1}` }}
+       aria-hidden="true"
+     />
+   )
+ }
 
 function TaskCard({ t, onUnschedule }) {
   return (
@@ -129,9 +138,18 @@ export default function Grid({
           </div>
         </div>
 
-        {weeks.map((w) => (
-          <WeekCell key={`c-${p.id}-${w.index}`} personId={p.id} weekIndex={w.index} />
-        ))}
+        {/* Draw visual cells for every lane; make only lane 0 droppable */}
+        {Array.from({ length: lanes }).map((_, lane) =>
+          weeks.map((w) => (
+            <WeekCell
+              key={`c-${p.id}-${w.index}-${lane}`}
+              personId={p.id}
+              weekIndex={w.index}
+              laneIndex={lane}
+              droppable={lane === 0}
+            />
+          ))
+        )}
 
         {placed.map((t) => (
           <TaskBar
