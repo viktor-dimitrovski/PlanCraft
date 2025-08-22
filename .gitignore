@@ -69,6 +69,11 @@ coverage/
 # Build output
 [Bb]in/
 [Oo]bj/
+# Ignore all obj folders everywhere
+**/obj/
+bin/
+obj/
+
 artifacts/
 TestResults/
 BenchmarkDotNet.Artifacts/
@@ -110,3 +115,5 @@ tmp/
 temp/
 *.local.*
 *.local.json
+
+
