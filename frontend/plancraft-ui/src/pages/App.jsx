@@ -78,20 +78,24 @@ export default function App () {
   // -------- data
   useEffect(() => { fetchProjects().then(setProjects) }, [])
 
-  const refreshGrid = () =>
-    fetchGrid(range.from.toISOString(), range.to.toISOString(), scenarioId)
-      .then(setData)
+  const refreshGrid = useCallback(
+    () =>
+      fetchGrid(range.from.toISOString(), range.to.toISOString(), scenarioId)
+        .then(setData),
+    [range.from, range.to, scenarioId, setData]
+  )
 
   const refreshScenarios = () => getScenarios().then(setScenarios)
 
-  useEffect(() => { refreshGrid() }, [range.from, range.to, scenarioId])
+  // refresh on any range/scenario change
+  useEffect(() => { refreshGrid() }, [refreshGrid])
   useEffect(() => { refreshScenarios() }, [])
 
   useEffect(() => {
     const f = () => refreshGrid()
     window.addEventListener('plancraft:refresh', f)
     return () => window.removeEventListener('plancraft:refresh', f)
-  }, [range.from, range.to, scenarioId])
+  }, [refreshGrid])
 
   // -------- DnD (planner only)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
@@ -145,7 +149,7 @@ export default function App () {
         })
         // Immediately inform backlog to hide this phase
         window.dispatchEvent(new CustomEvent('plancraft:phaseScheduled', { detail: { phaseId } }))
-        // Normal refresh flow
+        // Refresh
         refreshGrid()
         window.dispatchEvent(new Event('plancraft:refresh'))
         window.dispatchEvent(new Event('plancraft:projectsChanged'))
@@ -237,19 +241,40 @@ export default function App () {
         <div className="brand">PlanCraft</div>
         <div className="toolbar">
           <div className="navTabs">
-            <button className={route==='planner' ? 'primary' : ''} onClick={()=>setRoute('planner')}>Planner</button>
-            <button className={route==='admin' ? 'primary' : ''} onClick={()=>setRoute('admin')}>Admin</button>
+            <button
+              className={route === "planner" ? "primary" : ""}
+              onClick={() => setRoute("planner")}
+            >
+              Planner
+            </button>
+            <button
+              className={route === "admin" ? "primary" : ""}
+              onClick={() => setRoute("admin")}
+            >
+              Admin
+            </button>
           </div>
-          {route==='planner' && (
+          {route === "planner" && (
             <>
-              <button onClick={() => setWhatIf(!whatIf)} className={whatIf ? 'primary' : ''}>
-                {whatIf ? 'What-if ON' : 'What-if OFF'}
+              <button
+                onClick={() => setWhatIf(!whatIf)}
+                className={whatIf ? "primary" : ""}
+              >
+                {whatIf ? "What-if ON" : "What-if OFF"}
               </button>
               <button
                 onClick={() =>
-                  autobalance(range.from.toISOString(), range.to.toISOString(), 0.85)
-                    .then(r => alert((r.proposals || [])
-                      .map(p => `Task ${p.taskId}: ${p.reason}`).join('\n') || 'No proposals'))
+                  autobalance(
+                    range.from.toISOString(),
+                    range.to.toISOString(),
+                    0.85
+                  ).then((r) =>
+                    alert(
+                      (r.proposals || [])
+                        .map((p) => `Task ${p.taskId}: ${p.reason}`)
+                        .join("\n") || "No proposals"
+                    )
+                  )
                 }
               >
                 Auto-balance
@@ -260,8 +285,8 @@ export default function App () {
         </div>
       </div>
 
-      {route==='admin' ? (
-        <div className="container" style={{ gridTemplateColumns: '1fr' }}>
+      {route === "admin" ? (
+        <div className="container" style={{ gridTemplateColumns: "1fr" }}>
           <div className="main">
             <Management />
           </div>
@@ -277,7 +302,13 @@ export default function App () {
           autoScroll
         >
           <div className="container">
-            <ResizableSidebar side="left" min={280} max={560} initial={320} storageKey="plancraft.leftWidth">
+            <ResizableSidebar
+              side="left"
+              min={280}
+              max={560}
+              initial={320}
+              storageKey="plancraft.leftWidth"
+            >
               <LeftDock
                 projects={projects}
                 hideEmpty={hideEmpty}
@@ -287,38 +318,67 @@ export default function App () {
             </ResizableSidebar>
 
             <div className="main">
-              <Grid
-                range={range}
-                weeks={weeks}
-                people={people}
-                milestones={milestones}
-                density={density}
-                hideEmpty={hideEmpty}
-                onCreateTask={async (personId, weekIndex, title) => {
-                  const w = weeks?.[weekIndex]; if (!w) return
-                  const projectId = projects[0]?.id
-                  try {
-                    const tRes = await apiCreateTask({
-                      projectId, title,
-                      estimatedDays: 5,
-                      startDate: w.start,
-                      durationDays: 7,
-                      status: 1,
-                      requiredSkills: []
-                    })
-                    await apiCreateAssignment({ taskId: tRes.id, personId, sharePercent: 100, isPrimary: true })
-                    refreshGrid()
-                  } catch (e) {
-                    console.error('Quick add failed:', e)
-                    alert('Could not quick-add task. Check API console.')
-                  }
-                }}
-                onTaskClick={onTaskClick}
-                onUnschedule={onUnschedule}
-              />
+              {/* From/To left aligned above the grid */}
+              <div className="gridToolbar">
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>From</span>
+                  <input type="date" value={fromStr} onChange={onFrom} />
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span>To</span>
+                  <input type="date" value={toStr} onChange={onTo} />
+                </label>
+              </div>
+
+              {/* Horizontal scroll shell */}
+              <div className="gridShell">
+                <Grid
+                  weeks={weeks}
+                  people={people}
+                  milestones={milestones}
+                  density={density}
+                  hideEmpty={hideEmpty}
+                  colWidth={120}
+                  squareCells={true}
+                  onTaskClick={(t) => { setPanelTask(t); setPanelOpen(true) }}
+                  onUnschedule={onUnschedule}
+                  onCreateTask={async (personId, weekIndex, title) => {
+                    const w = weeks?.[weekIndex]
+                    if (!w) return
+                    const projectId = projects[0]?.id
+                    try {
+                      const tRes = await apiCreateTask({
+                        projectId,
+                        title,
+                        estimatedDays: 5,
+                        startDate: w.start,
+                        durationDays: 7,
+                        status: 1,
+                        requiredSkills: [],
+                      })
+                      await apiCreateAssignment({
+                        taskId: tRes.id,
+                        personId,
+                        sharePercent: 100,
+                        isPrimary: true,
+                      })
+                      refreshGrid()
+                    } catch (e) {
+                      console.error("Quick add failed:", e)
+                      alert("Could not quick-add task. Check API console.")
+                    }
+                  }}
+                />
+              </div>
             </div>
 
-            <ResizableSidebar side="right" min={260} max={420} initial={300} storageKey="plancraft.rightWidth">
+            <ResizableSidebar
+              side="right"
+              min={260}
+              max={420}
+              initial={300}
+              storageKey="plancraft.rightWidth"
+            >
               <Legend items={projects || []} />
               <AssignmentPanel
                 open={panelOpen}
@@ -334,39 +394,43 @@ export default function App () {
 
           {/* Drag preview */}
           <DragOverlay dropAnimation={null} className="dnd-overlay">
-            {activeDrag
-              ? (activeDrag.kind === 'phase'
-                  ? (
-                    <div style={{
-                      padding: '6px 10px',
-                      border: '1px solid var(--stroke)',
-                      borderRadius: 12,
-                      background: '#fff',
-                      boxShadow: '0 6px 20px rgba(2,6,23,.18)',
-                      fontSize: 13
-                    }}>
-                      {activeDrag.title} <span className="muted-2">({activeDrag.days}d)</span>
-                    </div>
-                  )
-                  : (
-                    <div style={{
-                      border: `2px solid ${activeDrag.color || 'var(--brand)'}`,
-                      background: '#fff',
-                      borderRadius: 12,
-                      height: 36,
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '0 10px',
-                      boxShadow: '0 6px 20px rgba(2,6,23,.18)'
-                    }}>
-                      <b style={{marginRight: 6}}>{activeDrag.title}</b>
-                      <span className="muted-2">
-                        {Number.isFinite(activeDrag.span) ? `${activeDrag.span.toFixed(1)}w` : ''}
-                      </span>
-                    </div>
-                  )
-                )
-              : null}
+            {activeDrag ? (
+              activeDrag.kind === "phase" ? (
+                <div
+                  style={{
+                    padding: "6px 10px",
+                    border: "1px solid var(--stroke)",
+                    borderRadius: 12,
+                    background: "#fff",
+                    boxShadow: "0 6px 20px rgba(2,6,23,.18)",
+                    fontSize: 13,
+                  }}
+                >
+                  {activeDrag.title}{" "}
+                  <span className="muted-2">({activeDrag.days}d)</span>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    border: `2px solid ${activeDrag.color || "var(--brand)"}`,
+                    background: "#fff",
+                    borderRadius: 12,
+                    height: 36,
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "0 10px",
+                    boxShadow: "0 6px 20px rgba(2,6,23,.18)",
+                  }}
+                >
+                  <b style={{ marginRight: 6 }}>{activeDrag.title}</b>
+                  <span className="muted-2">
+                    {Number.isFinite(activeDrag.span)
+                      ? `${activeDrag.span.toFixed(1)}w`
+                      : ""}
+                  </span>
+                </div>
+              )
+            ) : null}
           </DragOverlay>
         </DndContext>
       )}

@@ -336,3 +336,119 @@ small{ color:var(--muted-2); }
   gap: 6px;            /* was 8px */
   padding-left: 12px;  /* keep left padding comfortable */
 }
+
+
+
+/* --------------------------------------------------------------------------
+   6) Left Menu
+   ----------------------------------------------------------------------- */
+
+/* === Planner: toolbar + horizontal scroll === */
+.gridToolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px 6px;
+  position: sticky;
+  top: 0;
+  background: #f7f9fc;
+  z-index: 2;
+  border-bottom: 1px solid var(--stroke);
+}
+
+.gridToolbar input[type="date"] {
+  padding: 6px 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.gridShell {
+  width: 100%;
+  overflow-x: auto;   /* <-- shows horizontal scrollbar when grid wider than shell */
+  overflow-y: hidden;
+  padding-bottom: 8px;
+}
+
+.gridShell::-webkit-scrollbar { height: 10px; }
+.gridShell::-webkit-scrollbar-thumb { background: #d6e0ee; border-radius: 10px; }
+.gridShell::-webkit-scrollbar-track { background: transparent; }
+
+/* Let the inner grid enforce its minimum width via CSS vars (set by Grid.jsx) */
+.gridRoot { min-width: calc(200px + var(--col-count, 0) * var(--col-width, 120px)); }
+
+/* Optional: tidy up cells when we choose square lanes */
+.personRow { --laneH: 50px; } 
+.cell { background: transparent; }
+.cell.over { background: rgba(37,99,235,.06); }
+
+
+/* asdas */
+
+/* === Square cells, uniform border, no shadow === */
+
+/* 1) Make lanes a bit shorter so columns can match the height */
+:root { --laneH: 44px; } /* adjust if you want bigger/smaller squares */
+
+/* 2) Force both the timeline header and person rows to use
+      lane height as the column width (square cells). 
+      Uses --col-count from Grid.jsx; falls back to 52 if not set. */
+.timeline,
+.personRow {
+  grid-template-columns: var(--legendW, 200px)
+                         repeat(var(--col-count, 52), var(--laneH));
+}
+
+/* 3) Cells: same border on all sides, no shadow */
+.cell {
+  height: var(--laneH);
+  border: 1px solid var(--gridLine) !important;  /* override right/bottom-only */
+  border-radius: 8px;                             /* keep if you like rounded; set to 0 for square corners */
+  background: transparent;
+  box-shadow: none !important;
+}
+
+/* Keep drop target highlight minimal (no shadow) */
+.cell.over {
+  background: rgba(37, 99, 235, .06);
+  outline: 1px solid rgba(37, 99, 235, .25);
+  outline-offset: -1px;
+}
+
+
+
+
+
+
+/* == Force square cells & uniform borders (override inline styles) == */
+
+/* Size of a lane = cell height (and, below, also the column width) */
+:root { --laneH: 44px; }  /* adjust this number to make squares bigger/smaller */
+
+/* Let the grid shrink; inline had min-width */
+.gridRoot { min-width: 0 !important; }
+
+/* Columns: legend + N week columns whose width equals lane height.
+   Fallback N=23 so it works even if you don't set --col-count yet. */
+.timeline,
+.personRow {
+  grid-template-columns:
+    var(--legendW, 200px)
+    repeat(var(--col-count, 23), var(--laneH)) !important;
+}
+
+/* Cells: same border on all sides, no shadow */
+.gridRoot .cell {
+  height: var(--laneH) !important;
+  border: 1px solid var(--gridLine) !important;
+  border-radius: 8px;              /* set to 0 for sharp corners */
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Drop highlight without extra glow */
+.gridRoot .cell.over {
+  background: rgba(37, 99, 235, .06) !important;
+  outline: 1px solid rgba(37, 99, 235, .25) !important;
+  outline-offset: -1px !important;
+}

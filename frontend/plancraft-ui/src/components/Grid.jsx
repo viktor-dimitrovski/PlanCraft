@@ -1,3 +1,4 @@
+// src/components/Grid.jsx
 import React from 'react'
 import { useDroppable, useDraggable } from '@dnd-kit/core'
 
@@ -13,7 +14,7 @@ function packLanes(tasks) {
     if (typeof t.estimatedDays === 'number') return t.estimatedDays / 5
     if (typeof t.weekSpan === 'number') return t.weekSpan
     return 1
-    }
+  }
 
   for (const t of sorted) {
     const start = t.weekIndex
@@ -67,7 +68,7 @@ function TaskCard({ t, onUnschedule }) {
       <button
         className="taskX"
         title="Unschedule"
-        onClick={(e) => { e.stopPropagation(); onUnschedule?.(t.id, t.phaseId) }} 
+        onClick={(e) => { e.stopPropagation(); onUnschedule?.(t.id, t.phaseId) }}
       >✕</button>
     </div>
   )
@@ -103,16 +104,15 @@ function TaskBar({ t, color, onUnschedule }) {
       <div
         className="taskCard"
         style={{
-          '--taskColor': accent,                 // <- feeds enterprise.css pipeline
-          borderColor: accent || 'var(--brand)', // keep old inline fallback (optional)
+          '--taskColor': accent,                 // feeds enterprise.css
+          borderColor: accent || 'var(--brand)', // inline fallback
           width: `calc(${(t._spanFloat / spanInt) * 100}%)`
         }}
       >
         <TaskCard t={t} onUnschedule={onUnschedule} />
       </div>
     </div>
-  );
-
+  )
 }
 
 export default function Grid({
@@ -120,7 +120,12 @@ export default function Grid({
   people = [],
   milestones = [],
   onUnschedule,
+  /** NEW: fixed pixel width for each week column (enables horizontal scroll) */
+  colWidth = 120
 }) {
+  const gridCols = `200px repeat(${weeks.length}, ${colWidth}px)`
+  const gridMinWidth = 200 + weeks.length * colWidth // px
+
   const renderPersonRow = (p) => {
     const { placed, laneCount } = packLanes(p.tasks || [])
     const lanes = Math.max(1, laneCount)
@@ -130,7 +135,7 @@ export default function Grid({
         key={p.id}
         className="personRow"
         style={{
-          gridTemplateColumns: `200px repeat(${weeks.length}, 1fr)`,
+          gridTemplateColumns: gridCols,
           gridTemplateRows: `repeat(${lanes}, var(--laneH))`
         }}
       >
@@ -168,8 +173,8 @@ export default function Grid({
   }
 
   return (
-    <div className="gridRoot">
-      <div className="timeline" style={{ gridTemplateColumns: `200px repeat(${weeks.length}, 1fr)` }}>
+    <div className="gridRoot" style={{ minWidth: `${gridMinWidth}px` }}>
+      <div className="timeline" style={{ gridTemplateColumns: gridCols }}>
         <div />
         {weeks.map(w => (
           <div key={`w-${w.index}`} className="weekHead">

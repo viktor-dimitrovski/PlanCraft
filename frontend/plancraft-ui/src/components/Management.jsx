@@ -294,7 +294,7 @@ function PhasesManager({ banks, projects, onChange }) {
   const save = async (id) => {
     if (!edit.title.trim()) { alert('Title is required'); return }
     const days = parseInt(edit.estimatedDays,10); if (!Number.isFinite(days) || days <= 0) { alert('Estimated days must be > 0'); return }
-    await updatePhase(id, { title: edit.title.trim(), estimatedDays: days })
+    await updatePhase(id, { title: edit.title.trim(), estimatedDays: days, projectId: parseInt(selectedProject, 10) }) 
     setEditId(null); setEdit({})
     await loadFor(parseInt(selectedProject,10)); onChange?.()
   }

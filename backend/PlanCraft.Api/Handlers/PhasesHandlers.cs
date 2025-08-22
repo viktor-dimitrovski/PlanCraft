@@ -17,11 +17,17 @@ public static class PhasesHandlers
 
     public static async Task<IResult> Update(PlanCraftDb db, int id, ProjectPhase ph)
     {
-        ph.Id = id;
-        db.Update(ph);
+        var existing = await db.ProjectPhases.FindAsync(id);
+        if (existing is null) return Results.NotFound();
+
+        // patch only what the UI edits
+        existing.Title = ph.Title?.Trim() ?? existing.Title;
+        existing.EstimatedDays = ph.EstimatedDays > 0 ? ph.EstimatedDays : existing.EstimatedDays;
+
         await db.SaveChangesAsync();
         return Results.NoContent();
     }
+
 
     public static async Task<IResult> Delete(PlanCraftDb db, int id)
     {
