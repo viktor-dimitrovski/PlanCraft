@@ -15,6 +15,7 @@
   --ng-ink: #111827;      /* neutral-900 */
   --ng-muted: #6b7280;    /* neutral-500 */
   --ng-brand: #2563eb;    /* blue-600 */
+  --ng-card-yshift: -8px;
 }
 
 html, body, #root { height: 100%; }
@@ -201,4 +202,58 @@ body { margin: 0; color: var(--ng-ink); background: #fafafa; }
 .ng-leftHeaderSpacer{
   height: calc(var(--ng-headerH1) + var(--ng-headerH2));
   border-bottom: 1px solid var(--ng-stroke);
+}
+
+
+/* ===== Task overlay (render-only) ===== */
+.ng-taskLayer{
+  position: absolute;
+  inset: calc(var(--ng-headerH1) + var(--ng-headerH2)) 0 0 0;
+  z-index: 10;
+  pointer-events: none; /* cards re-enable */
+}
+.ng-card{
+  box-sizing: border-box;
+  --ng-card-vpad: 8px;
+  height: calc(var(--ng-laneH) - (var(--ng-card-vpad) * 2));
+  top: 50%;
+  transform: translateY(calc(-50% + var(--ng-card-yshift)));
+  position: absolute;
+  height: calc(var(--ng-laneH) - 8px);
+  background: #fff;
+  border: 1px solid var(--ng-stroke);
+  border-left: 4px solid var(--ng-brand);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  padding: 6px 8px;
+  overflow: hidden;
+  pointer-events: auto;
+}
+.ng-cardTitle{
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+
+/* ===== Today marker (GitHub-like) ===== */
+.ng-today{
+  position: absolute;
+  top: calc(var(--ng-headerH1) + var(--ng-headerH2));
+  bottom: 0;
+  width: 0;
+  border-left: 2px solid #e11d48;
+  pointer-events: none;
+  z-index: 6;
+}
+.ng-today-nub{
+  position: absolute;
+  top: calc(var(--ng-headerH1) + var(--ng-headerH2) - 6px);
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #e11d48;
+  transform: translateX(-4px);
+  z-index: 7;
 }

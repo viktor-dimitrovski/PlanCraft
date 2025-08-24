@@ -3,8 +3,21 @@ import React, { useMemo, useRef, useState, useEffect } from 'react'
 import ResizableSidebar from '../../components/ResizableSidebar'
 import { buildMonthSegments } from './calendar'
 import './newgrid.css'
+import TaskLayer from './task-layer/TaskLayer'
+import TodayMarker from './task-layer/TodayMarker'
 
 // Generate demo people list (placeholder). In later steps we'll wire true data.
+
+const demoTasks = (from) => {
+  // generate a few demo tasks aligned to columns (snap-based)
+  const y = from.getFullYear(), m = from.getMonth()
+  return [
+    { id:'T1', personId:'P1',  start: new Date(y, m, 7),  durationDays: 7,  title:'Onboarding Erste' },
+    { id:'T2', personId:'P2',  start: new Date(y, m, 14), durationDays: 14, title:'API Spec Review' },
+    { id:'T3', personId:'P5',  start: new Date(y, m+1, 4), durationDays: 7, title:'Core Upgrade' },
+    { id:'T4', personId:'P10', start: new Date(y, m+1, 18), durationDays: 21, title:'Bank A – PIS Pilot' },
+  ]
+}
 const demoPeople = Array.from({length: 24}, (_,i)=>({ id:'P'+(i+1), name: `Person ${i+1}` }))
 
 export default function NewGrid(){
@@ -26,6 +39,9 @@ export default function NewGrid(){
 
   // Column width heuristics (denser for daily)
   const colW = zoom === 'day' ? 36 : zoom === 'week' ? 96 : 128
+
+  const [tasks, setTasks] = useState(() => demoTasks(from))
+  useEffect(()=>{ setTasks(demoTasks(from)) }, [from])
 
   // Build calendar columns & months for headers
   const { cols, months } = useMemo(()=>buildMonthSegments(from, to, zoom), [from, to, zoom])
@@ -116,7 +132,8 @@ export default function NewGrid(){
 
               {/* Task layer placeholder */}
               <div className="ng-taskLayer">
-                {/* future: absolutely-positioned cards go here */}
+                {cols.length > 0 && <TodayMarker gridStart={cols[0].start} zoom={zoom} colW={colW} />}
+              <TaskLayer cols={cols} people={demoPeople} zoom={zoom} tasks={tasks} colWidth={colW} />
               </div>
             </div>
           </div>
