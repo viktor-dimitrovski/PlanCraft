@@ -1,7 +1,7 @@
 import '../styles/enterprise.css'
 import React from 'react';
-import NewGridPage from './NewGrid/index.jsx';
+import Planner from './Planner';
 
 export default function App() {
-  return <NewGridPage />;
+  return <Planner />;
 }

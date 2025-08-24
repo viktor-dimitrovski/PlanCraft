@@ -1,0 +1,204 @@
+
+/* ==============================
+   NewGrid v1 — base layer only
+   Compact, modern, thick scrollbars; sticky headers & left lanes
+   ============================== */
+
+:root{
+  --ng-leftWidth: 320px;
+  --ng-laneH: 56px;
+  --ng-headerH1: 36px;
+  --ng-headerH2: 28px;
+  --ng-gridLine: #e5e7eb; /* neutral-200 */
+  --ng-stroke: #d1d5db;   /* neutral-300 */
+  --ng-bg: #fff;
+  --ng-ink: #111827;      /* neutral-900 */
+  --ng-muted: #6b7280;    /* neutral-500 */
+  --ng-brand: #2563eb;    /* blue-600 */
+}
+
+html, body, #root { height: 100%; }
+body { margin: 0; color: var(--ng-ink); background: #fafafa; }
+
+/* Thick, visible scrollbars */
+* {
+  scrollbar-width: auto;
+  scrollbar-color: var(--ng-muted) #f3f4f6;
+}
+*::-webkit-scrollbar {
+  height: 14px;
+  width: 14px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--ng-muted);
+  border-radius: 10px;
+  border: 3px solid #f3f4f6;
+}
+*::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+/* App shell */
+.ng-shell{
+  --ng-leftWidth: var(--leftWidth, 320px);
+  display: grid;
+  grid-template-columns: var(--ng-leftWidth) 1fr;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  container-type: inline-size;
+}
+
+/* Toolbar */
+.ng-toolbar{
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--ng-stroke);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.ng-pill{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--ng-stroke);
+  border-radius: 999px;
+  background: #fff;
+}
+.ng-label{ font-size: 12px; color: var(--ng-muted); }
+.ng-select, .ng-input{
+  height: 28px;
+  border: 1px solid var(--ng-stroke);
+  border-radius: 8px;
+  padding: 0 8px;
+  background: #fff;
+}
+
+/* Left sidebar (resizable) */
+.ng-left{
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid var(--ng-stroke);
+  background: #ffffff;
+}
+.ng-left .people{
+  height: calc(100vh - var(--ng-headerH1) - var(--ng-headerH2) - 49px); /* minus toolbar */
+  overflow: auto;
+}
+.ng-person{
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: center;
+  height: var(--ng-laneH);
+  padding: 0 12px;
+  border-bottom: 1px solid var(--ng-gridLine);
+}
+
+/* Grid area */
+.ng-gridWrap{
+  position: relative;
+  overflow: hidden;
+  background: var(--ng-bg);
+}
+/* Scroll container holds both headers (sticky) and body (scrollable) */
+.ng-scroll{
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+
+/* Header rows (sticky) */
+.ng-header{
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: #fff;
+}
+.ng-headerRow1{
+  display: grid;
+  
+  
+  height: var(--ng-headerH1);
+  border-bottom: 1px solid var(--ng-stroke);
+}
+.ng-monthCell{
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  white-space: nowrap;
+  font-weight: 600;
+  background: #f9fafb;
+  border-right: 1px solid var(--ng-gridLine);
+}
+.ng-headerRow2{
+  display: grid;
+  
+  
+  height: var(--ng-headerH2);
+  border-bottom: 1px solid var(--ng-stroke);
+}
+.ng-colLabel{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--ng-muted);
+  border-right: 1px solid var(--ng-gridLine);
+}
+
+/* Body grid */
+.ng-body{
+  display: grid;
+  grid-template-columns: var(--ng-leftWidth) 1fr;
+}
+.ng-bodyLeft{
+  position: sticky;
+  left: 0;
+  z-index: 30;
+  background: #fff;
+  border-right: 1px solid var(--ng-stroke);
+}
+.ng-bodyRight{
+  position: relative;
+}
+
+/* Background grid layer */
+.ng-gridBg{
+  display: grid;
+  
+  
+}
+.ng-bgCol{
+  border-right: 1px solid var(--ng-gridLine);
+}
+.ng-laneRow{
+  height: var(--ng-laneH);
+  border-bottom: 1px solid var(--ng-gridLine);
+}
+
+/* Empty task overlay (top layer placeholder) */
+.ng-taskLayer{
+  position: absolute;
+  inset: calc(var(--ng-headerH1) + var(--ng-headerH2)) 0 0 0;
+  pointer-events: none; /* base step has no interactions yet */
+}
+
+
+/* Thicker vertical lines for week boundaries */
+.ng-bgColWeek{ border-right: 2px solid var(--ng-stroke); }
+.ng-headerRow2 .ng-colLabel{ border-right: 1px solid var(--ng-gridLine); }
+
+/* Thicker vertical lines for month boundaries */
+.ng-bgColMonth{ border-right: 3px solid var(--ng-ink); }
+
+
+/* Spacer to align first person row exactly under the calendar header (right grid) */
+.ng-leftHeaderSpacer{
+  height: calc(var(--ng-headerH1) + var(--ng-headerH2));
+  border-bottom: 1px solid var(--ng-stroke);
+}
