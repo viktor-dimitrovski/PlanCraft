@@ -1,0 +1,32 @@
+/* == Force square cells & uniform borders (override inline styles) == */
+
+/* Size of a lane = cell height (and, below, also the column width) */
+:root { --laneH: 44px; }  /* adjust this number to make squares bigger/smaller */
+
+/* Let the grid shrink; inline had min-width */
+.gridRoot { min-width: 0 !important; }
+
+/* Columns: legend + N week columns whose width equals lane height.
+   Fallback N=23 so it works even if you don't set --col-count yet. */
+.timeline,
+.personRow {
+  grid-template-columns:
+    var(--legendW, 200px)
+    repeat(var(--col-count, 23), var(--laneH)) !important;
+}
+
+/* Cells: same border on all sides, no shadow */
+.gridRoot .cell {
+  height: var(--laneH) !important;
+  border: 1px solid var(--gridLine) !important;
+  border-radius: 8px;              /* set to 0 for sharp corners */
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Drop highlight without extra glow */
+.gridRoot .cell.over {
+  background: rgba(37, 99, 235, .06) !important;
+  outline: 1px solid rgba(37, 99, 235, .25) !important;
+  outline-offset: -1px !important;
+}

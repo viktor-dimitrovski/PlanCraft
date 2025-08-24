@@ -64,10 +64,14 @@ export function forecast(projectId, trials) {
 
 /* =========================== PEOPLE =========================== */
 
-export const fetchPeople      = ()            => apiGet('people');
-export const createPerson     = (p)           => apiPost('people', p);
-export const updatePerson     = (id, p)       => apiPut(`people/${id}`, p);
-export const deletePerson     = (id)          => apiDelete(`people/${id}`);
+/* =========================== PEOPLE =========================== */
+// NOTE: no leading slash; BASE already includes /api
+export const fetchPeople  = () => apiGet('people');
+export const addPerson    = (payload) => apiPost('people', payload);
+export const updatePerson = (id, payload) => apiPut(`people/${id}`, payload);
+export const deletePerson = (id) => apiDelete(`people/${id}`);
+
+
 
 /* =========================== BANKS =========================== */
 

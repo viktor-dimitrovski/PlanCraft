@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { fetchBanks, createBank, createPerson, createProject } from '../lib/api'
+import { fetchBanks, createBank, addPerson, createProject } from '../lib/api'
 
 export default function QuickAdd({ afterChange }) {
   const [banks, setBanks] = useState([])
@@ -35,7 +35,7 @@ export default function QuickAdd({ afterChange }) {
   const onAddPerson = async (e) => {
     e.preventDefault()
     if (!personName.trim()) return
-    await createPerson({
+    await addPerson({
       name: personName.trim(),
       capacityHoursPerWeek: parseInt(personCap, 10) || 40,
       skills: [],

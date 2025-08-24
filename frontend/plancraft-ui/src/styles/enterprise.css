@@ -8,6 +8,8 @@
    ----------------------------------------------------------------------- */
 
 :root {
+  /* Week column width scales with viewport and column count */
+  --weekW: clamp(96px, calc((100vw - var(--legendW, 200px)) / var(--col-count, 10)), 140px);
   /* Palette */
   --bg:              #f4f7fb;
   --surface:         #ffffff;
@@ -28,7 +30,7 @@
 
   /* Layout */
   --leftWidth:       320px;
-  --rightWidth:      300px;
+  --rightWidth:      0px;
   --legendW:         200px;
 
   /* Lanes */
@@ -101,7 +103,7 @@ a:hover{ text-decoration:underline; }
   display:grid;
   grid-template-columns: var(--leftWidth,320px) 1fr var(--rightWidth,300px);
   height: calc(100vh - 48px);
-  overflow:hidden;
+  overflow:visible;
 }
 
 /* --------------------------------------------------------------------------
@@ -180,7 +182,7 @@ a:hover{ text-decoration:underline; }
    4) Grid (timeline, rows, cells, tasks)
    ----------------------------------------------------------------------- */
 
-.gridRoot{ display:grid; grid-template-rows:auto 1fr; gap:8px; }
+.gridRoot { width:100%; min-width:100%; }
 
 /* Timeline */
 .timeline{
@@ -245,7 +247,7 @@ a:hover{ text-decoration:underline; }
   border-radius:12px;
   height:36px; display:flex; align-items:center;
   box-shadow: var(--shadow-1);
-  overflow:hidden;
+  overflow:visible;
 }
 .taskCard:hover{ box-shadow: var(--shadow-2); }
 .taskCardInner{ display:flex; align-items:center; gap:6px; padding:0 10px; font-size:13px; }
@@ -365,8 +367,7 @@ small{ color:var(--muted-2); }
 
 .gridShell {
   width: 100%;
-  overflow-x: auto;   /* <-- shows horizontal scrollbar when grid wider than shell */
-  overflow-y: hidden;
+  overflow: visible; /* single vertical scroll on page */
   padding-bottom: 8px;
 }
 
@@ -388,7 +389,9 @@ small{ color:var(--muted-2); }
 /* === Square cells, uniform border, no shadow === */
 
 /* 1) Make lanes a bit shorter so columns can match the height */
-:root { --laneH: 44px; } /* adjust if you want bigger/smaller squares */
+:root {
+  /* Week column width scales with viewport and column count */
+  --weekW: clamp(96px, calc((100vw - var(--legendW, 200px)) / var(--col-count, 10)), 140px); --laneH: 44px; } /* adjust if you want bigger/smaller squares */
 
 /* 2) Force both the timeline header and person rows to use
       lane height as the column width (square cells). 
@@ -420,35 +423,327 @@ small{ color:var(--muted-2); }
 
 
 
-/* == Force square cells & uniform borders (override inline styles) == */
 
-/* Size of a lane = cell height (and, below, also the column width) */
-:root { --laneH: 44px; }  /* adjust this number to make squares bigger/smaller */
 
-/* Let the grid shrink; inline had min-width */
-.gridRoot { min-width: 0 !important; }
+/* --- Timeline: months + bold dates --- */
+.timeline { row-gap: 4px; }
 
-/* Columns: legend + N week columns whose width equals lane height.
-   Fallback N=23 so it works even if you don't set --col-count yet. */
-.timeline,
-.personRow {
-  grid-template-columns:
-    var(--legendW, 200px)
-    repeat(var(--col-count, 23), var(--laneH)) !important;
+.weekHead {
+  font-weight: 700;                 /* bold dates */
+  color: #0f172a;                   /* stronger contrast */
+  letter-spacing: .02em;
 }
 
-/* Cells: same border on all sides, no shadow */
-.gridRoot .cell {
-  height: var(--laneH) !important;
-  border: 1px solid var(--gridLine) !important;
-  border-radius: 8px;              /* set to 0 for sharp corners */
-  background: transparent !important;
-  box-shadow: none !important;
+/* Vertical boundary at the start of each month (header only) */
+.weekHead.isMonthStart {
+  border-left: 2px solid var(--stroke-strong);
+  padding-left: 6px;
 }
 
-/* Drop highlight without extra glow */
-.gridRoot .cell.over {
-  background: rgba(37, 99, 235, .06) !important;
-  outline: 1px solid rgba(37, 99, 235, .25) !important;
-  outline-offset: -1px !important;
+/* Month band spanning weeks */
+.monthBand {
+  display: flex; align-items: center; justify-content: center;
+  height: 28px;
+  background: color-mix(in srgb, var(--brand-600) 10%, #fff);
+  border: 1px solid var(--stroke-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-1);
+}
+.monthLabel {
+  font-weight: 800;
+  color: #0b1220;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: .06em;
+}
+
+/* Extend month boundary lines down the grid */
+.personRow .cell[data-first="1"] {
+  box-shadow: inset 2px 0 0 var(--stroke-strong) !important; /* vertical guide */
+}
+
+
+
+
+
+
+
+
+/* ===== Grid Enhancements (compact, today, sticky, util, badges) ================= */
+
+/* Tokens */
+:root{
+  --colW: 120px;
+  --cardH-compact: 28px;
+  --cardH-expanded: 36px;
+  --cardR: 12px;
+  --guide: rgba(64,120,192,.45);
+  --todayTint: rgba(64,120,192,.07);
+}
+
+/* Current week tint + top guide */
+.weekHead.isToday{ color: var(--brand-700); font-weight:700; }
+.cell[data-today="1"]{ background: var(--todayTint); }
+.weekHead.isToday::after{
+  content:''; position:absolute; left:0; right:0; top:0; height:2px; background: var(--guide);
+}
+
+/* Quarter & month separators */
+.weekHead.isMonthStart{ border-left:2px solid var(--stroke-strong); }
+.cell[data-first="1"]{ border-left:2px solid var(--stroke-strong); }
+.cell[data-quarter="1"]{ box-shadow: inset 2px 0 0 var(--stroke-strong); }
+
+/* Sticky header & legend */
+.gridShell{ overflow:auto; }
+.timeline{ position: sticky; top: 0; z-index: 5; background: var(--bg); }
+.legendCell{ position: sticky; left: 0; z-index: 4; background: linear-gradient(180deg, var(--panel), #fff); border-right:1px solid var(--stroke); }
+
+/* Utilization bar */
+.cell .util{
+  position:absolute; left:6px; right:6px; bottom:6px; height:4px; border-radius:4px;
+  background: rgba(2,6,23,.07); overflow:visible;
+}
+.cell .util > i{ display:block; height:100%; width: var(--util-pct, 0%); background: var(--brand-500); opacity:.75; }
+.cell[data-over="1"] .util > i{ background: #ef4444; opacity:.9; }
+
+/* Over-allocation badge */
+.cell .overBadge{
+  position:absolute; top:2px; right:4px; width:8px; height:8px; border-radius:50%;
+  background:#ef4444; box-shadow:0 0 0 2px #fff;
+}
+
+/* Drag snap guide (uses existing .cell.over) */
+.cell.over{ background: var(--cellHover); outline:2px solid rgba(37,99,235,.25); outline-offset:-1px; }
+
+
+/* Density modes */
+.gridRoot[data-density="compact"] .taskCard{ height: var(--cardH-compact); }
+.gridRoot[data-density="expanded"] .taskCard{ height: var(--cardH-expanded); }
+
+
+
+/* ===== Visual system polish =============================================== */
+/* Type scale & system font stack */
+:root{
+  --fs-meta: 12px;
+  --fs-meta-strong: 14px;
+  --fs-label: 14px;
+  --fs-label-strong: 16px;
+  --fs-title: 16px;
+  --fs-title-strong: 18px;
+  --radius-card: 12px;
+}
+body{ font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, 'Apple Color Emoji','Segoe UI Emoji'; }
+
+/* Color usage discipline */
+.cell{ background: rgba(255,255,255,.4); }
+.taskCard{ border-color: var(--taskColor, var(--brand-600)); }
+.taskWrap.dragging .taskCard{ box-shadow: var(--shadow-3); }
+
+/* Elevation */
+.timeline{ box-shadow: inset 0 -1px 0 var(--stroke); }
+.taskCard{ box-shadow: var(--shadow-1); }
+.taskCard:hover{ box-shadow: var(--shadow-2); }
+
+/* Focus states (cards, inputs, filters) */
+.taskCard:focus-visible,
+button:focus-visible,
+select:focus-visible,
+input:focus-visible{
+  outline: 2px solid var(--brand-600);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+/* Iconography size consistency */
+.taskX{ width: 16px; height:16px; }
+
+/* Contrast check helpers */
+.weekHead{ color: var(--muted-2); }
+.weekHead.isToday{ color: var(--brand-700); }
+
+
+
+/* Export mode: avoid CSS Color Level 4 functions that html2canvas can't parse.
+   Force brand variables and key tokens to plain RGB. */
+:root.export-mode{
+  --brand-50:#eff6ff; --brand-100:#dbeafe; --brand-200:#bfdbfe; --brand-300:#93c5fd;
+  --brand-400:#60a5fa; --brand-500:#3b82f6; --brand-600:#2563eb; --brand-700:#1d4ed8;
+  --brand-800:#1e40af; --brand-900:#1e3a8a;
+  --accent: var(--brand-600);
+  --gridLine: rgba(0,0,0,.1);
+  --cellHover: rgba(37,99,235,.08);
+  --panel:#f8fafc;
+  --bg:#fff;
+  --stroke:#e5e7eb;
+  --stroke-strong:#cbd5e1;
+  --muted:#6b7280;
+  --muted-2:#64748b;
+  --shadow-1: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-2: 0 6px 20px rgba(0,0,0,.12);
+  --shadow-3: 0 8px 30px rgba(0,0,0,.18);
+}
+/* In export mode, avoid advanced color functions in problematic areas */
+:root.export-mode .cell,
+:root.export-mode .taskCard,
+:root.export-mode .timeline,
+:root.export-mode .legendCell{ filter:none; backdrop-filter:none; }
+
+
+
+/* Drag layering & pointer-events discipline */
+.gridShell[data-dragging="1"] .cell { pointer-events: none; }
+.taskWrap.dragging .taskCard{ will-change: transform; transition: none; }
+.taskWrap .taskCard{ transition: transform 140ms ease, box-shadow 140ms ease; }
+
+
+
+/* Bi-week view hints */
+.gridRoot[data-zoom="biweekly"] .cell[data-bi="odd"]{ background: rgba(2,6,23,.03); }
+.gridRoot[data-zoom="biweekly"] .cell[data-bi="odd"].decor{ background: rgba(2,6,23,.02); }
+.gridRoot[data-zoom="biweekly"] .cell[data-bi="odd"]{ cursor: not-allowed; }
+.gridRoot[data-zoom="biweekly"] .cell[data-bi="odd"] .util{ opacity:.4; }
+
+
+
+/* Card progress line */
+.taskCard .progress{
+  position:absolute; left:8px; right:8px; bottom:4px;
+  height:3px; border-radius:3px; background:rgba(0,0,0,.08);
+}
+.taskCard .progress > i{
+  display:block; height:100%; width: var(--pct, 0%);
+  background: var(--taskColor, var(--brand-600)); opacity:.9;
+}
+
+/* Capacity micro-label in cell */
+.cell .capLabel{
+  position:absolute; left:6px; bottom:12px;
+  font-size:11px; line-height:1; color: var(--muted-2);
+  background: rgba(255,255,255,.8);
+  padding: 2px 4px; border-radius: 4px; border: 1px solid var(--stroke);
+  pointer-events:none;
+}
+.gridRoot[data-cap="1"] .capLabel{ opacity: 1; }
+
+
+
+/* ===== Timeline & readability upgrades ===== */
+
+/* Distinguish headers */
+.timeline{ position: sticky; top: 0; z-index: 5; background: var(--bg); }
+.monthBand{ background: var(--brand-50); border: 1px solid var(--stroke); border-radius: 10px; box-shadow: inset 0 -1px 0 var(--stroke); }
+.monthLabel{ font-weight: 600; font-size: var(--fs-label); color: var(--brand-700); }
+.weekHead{ font-size: var(--fs-meta-strong); color: var(--muted-2); }
+.weekHead.isMonthStart{ border-left: 2px solid var(--stroke-strong); padding-left: 6px; }
+.weekHead.isToday{ color: var(--brand-700); position: relative; }
+.weekHead.isToday::after{ content:''; position:absolute; left:0; right:0; top:0; height:2px; background:#ef4444; }
+
+/* Current week tint + red vertical line */
+.cell[data-today="1"]{ background: var(--todayTint); box-shadow: inset 2px 0 0 #ef4444; }
+.cell[data-quarter="1"]{ box-shadow: inset 2px 0 0 var(--stroke-strong); }
+
+/* Past weeks slightly desaturate */
+.cell[data-past="1"]{ opacity: .85; filter: saturate(.85); }
+.weekHead.isPast{ color: #94a3b8; }
+
+/* Sticky left legend remains */
+.legendCell{ position: sticky; left: 0; z-index: 4; background: linear-gradient(180deg, var(--panel), #fff); border-right:1px solid var(--stroke); }
+
+
+
+/* --- Sticky timeline hardening --- */
+.gridShell{ position: relative; overflow: auto; }
+.timeline{ position: sticky; top: 0; z-index: 12; background: var(--bg); box-shadow: 0 1px 0 var(--stroke); }
+.timeline > *{ background: inherit; } /* avoid bleed-through when sticky overlaps rows */
+.legendCell{ position: sticky; left: 0; z-index: 11; background: linear-gradient(180deg, var(--panel), #fff); border-right:1px solid var(--stroke); }
+
+
+
+/* === Clean layout for task cards & cells (readability) ================== */
+
+/* Soften grid lines and give cells breathing room */
+:root{ --gridLine: rgba(2,6,23,.08); }
+.cell{ padding: 4px; border-right:1px solid var(--gridLine); border-bottom:1px solid var(--gridLine); }
+.cell .util{ bottom:6px; } /* keep util visible with padding */
+
+/* Card surface: lighter border, more padding and space for close icon */
+.taskCard{ border-width:1px; }
+.taskCardInner{ padding: 6px 28px 6px 10px; gap:8px; line-height:1.25; }
+.taskCardInner .title{
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  font-weight: 600; font-size: 15px;
+}
+.taskCardInner > span{ color: var(--muted-2); font-size: 12px; }
+
+/* Reduce visual noise: show controls only on hover/selected */
+.taskCard .taskX{ opacity: 0; pointer-events: none; transition: opacity 120ms ease; }
+.taskCard:hover .taskX,
+.taskWrap.selected .taskX{ opacity: 1; pointer-events: auto; }
+
+/* Keep hover/focus clean (no border flicker) */
+.taskCard:hover{ box-shadow: var(--shadow-2); }
+.taskCard:focus-visible{ outline: 2px solid var(--brand-600); outline-offset: 2px; }
+
+/* Progress line already exists; keep it tight to bottom */
+.taskCard .progress{ left:8px; right:8px; bottom:4px; }
+
+
+
+/* Sticky header hardening */
+.main{ overflow:auto; }
+.timeline{ position: sticky; top:0; z-index: 20; background: var(--bg); }
+.timeline .weekHead{ -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; filter:none; }
+
+/* Remove heavy left borders except quarter lines */
+.cell[data-first="1"]{ border-left: 0; }
+.cell[data-quarter="1"]{ box-shadow: inset 1px 0 0 var(--stroke-strong); }
+
+/* Softer grid lines and focus on tasks */
+.cell{ border-right:1px solid rgba(2,6,23,.08); border-bottom:1px solid rgba(2,6,23,.08); }
+.personRow{ border-color: var(--stroke); box-shadow: var(--shadow-1); }
+
+/* Taller tasks for readability */
+.gridRoot[data-density="compact"] .taskCard{ height: calc(var(--laneH) - 16px); }
+.gridRoot[data-density="expanded"] .taskCard{ height: calc(var(--laneH) - 10px); }
+.taskCardInner{ padding: 8px 28px 8px 12px; }
+
+/* Crisp text in headers */
+.weekHead, .monthLabel{ -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+
+
+/* === Planner sticky improvements & clean grid lines (added) === */
+.timeline { position: sticky; top: 0; z-index: 30; background: var(--surface); box-shadow: 0 1px 0 var(--stroke); }
+
+.legendCell { position: sticky; left: 0; z-index: 20; background: var(--surface); box-shadow: 1px 0 0 var(--stroke); }
+
+/* Cells: remove heavy styling; draw uniform inner grid lines */
+.cell {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow:
+    inset -1px 0 0 var(--gridLine),
+    inset 0 -1px 0 var(--gridLine);
+}
+
+/* Top edge for each person row */
+.personRow { position: relative; }
+.personRow::before {
+  content: "";
+  position: absolute;
+  left: var(--legendW, 200px);
+  right: 0;
+  top: 0;
+  height: 1px;
+  background: var(--gridLine);
+}
+
+/* Left edge on the first week cell (week-0) */
+.personRow .cell[aria-label="week-0"] {
+  box-shadow:
+    inset 1px 0 0 var(--gridLine),
+    inset -1px 0 0 var(--gridLine),
+    inset 0 -1px 0 var(--gridLine);
 }
