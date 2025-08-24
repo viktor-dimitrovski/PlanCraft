@@ -16,6 +16,7 @@
   --ng-muted: #6b7280;    /* neutral-500 */
   --ng-brand: #2563eb;    /* blue-600 */
   --ng-card-yshift: -8px;
+  --ng-today-offset: -60px;
 }
 
 html, body, #root { height: 100%; }
@@ -240,7 +241,7 @@ body { margin: 0; color: var(--ng-ink); background: #fafafa; }
 /* ===== Today marker (GitHub-like) ===== */
 .ng-today{
   position: absolute;
-  top: calc(var(--ng-headerH1) + var(--ng-headerH2));
+  top: calc(var(--ng-headerH1) + var(--ng-headerH2) + var(--ng-today-offset));
   bottom: 0;
   width: 0;
   border-left: 2px solid #e11d48;
@@ -249,7 +250,7 @@ body { margin: 0; color: var(--ng-ink); background: #fafafa; }
 }
 .ng-today-nub{
   position: absolute;
-  top: calc(var(--ng-headerH1) + var(--ng-headerH2) - 6px);
+  top: calc(var(--ng-headerH1) + var(--ng-headerH2) - 6px + var(--ng-today-offset));
   width: 8px;
   height: 8px;
   border-radius: 999px;
