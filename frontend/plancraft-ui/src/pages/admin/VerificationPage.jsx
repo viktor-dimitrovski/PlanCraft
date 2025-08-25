@@ -96,7 +96,7 @@ export default function VerificationPage({ phase, criteria, onBack, onUpdateStat
   return (
     <div className="ap-verify">
       {/* Page header */}
-      <header className="ap-verify__head" role="region" aria-label="Verification Toolbar">
+      <header className="ap-verify__head adminHeader" role="region" aria-label="Verification Toolbar">
         <button className="ap-btn ghost" onClick={onBack} aria-label="Back to phases">← Back</button>
 
         <div className="ap-verify__title">
@@ -106,10 +106,7 @@ export default function VerificationPage({ phase, criteria, onBack, onUpdateStat
         <div className="ap-verify__stats">
           <div className="ap-chip ap-chip--muted">{passedReq.length}/{required.length} required</div>
           <div className="ap-chip ap-chip--muted">{criteria.length} total</div>
-          <div className="ap-progress" aria-label="Progress">
-            <div className="ap-progress__bar" style={{ width: `${pct}%` }} />
-            <span className="ap-progress__label">{pct}%</span>
-          </div>
+          <Progress value={pct ?? 0} />
         </div>
 
         <div className="ap-verify__filters">
@@ -190,4 +187,29 @@ export default function VerificationPage({ phase, criteria, onBack, onUpdateStat
       />
     </div>
   )
+}
+
+// Progress.jsx
+function Progress({
+  value,
+  className = '',
+  ariaLabel = 'Progress',
+  showLabel = true,
+}) {
+  const n = Number.isFinite(+value) ? +value : 0;
+  const v = Math.max(0, Math.min(100, n));
+
+  return (
+    <div
+      className={`ap-progress ${className}`}
+      role="progressbar"
+      aria-label={ariaLabel}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={v}
+    >
+      <div className="ap-progress__bar" style={{ width: `${v}%` }} />
+      {showLabel && <span className="ap-progress__label">{v}%</span>}
+    </div>
+  );
 }

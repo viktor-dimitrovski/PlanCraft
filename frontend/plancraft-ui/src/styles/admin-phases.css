@@ -28,15 +28,6 @@
 
 .ap-badge{ display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; }
 
-.ap-progress{ position:relative; height:16px; display:flex; align-items:center; gap:8px; }
-.ap-progress__track{ flex:1; height:8px; background:#e5e7eb; border-radius:999px; }
-.ap-progress__bar{ position:absolute; left:20px; right:120px; height:8px; border-radius:999px; }
-.ap-progress__bar{ left:0; }
-.ap-progress__cap{
-  width:16px; height:16px; border-radius:999px; background:#fff; border:4px solid #e5e7eb; margin-right:8px;
-}
-.ap-progress__label{ margin-left:auto; font-weight:700; }
-
 .ap-dep{ background:#eef2ff; color:#3730a3; padding:2px 8px; border-radius:999px; font-size:12px; }
 
 .ap-actions-col{ display:flex; gap:6px; align-items:center; }
@@ -233,15 +224,7 @@
 }
 .ap-input:focus{ border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,.25); }
 
-.ap-progress{
-  position:relative; width:160px; height:10px; background:var(--surface-alt);
-  border:1px solid var(--border); border-radius:999px; overflow:hidden;
-}
-.ap-progress__bar{ height:100%; background:linear-gradient(90deg, var(--ok), #34d399); }
-.ap-progress__label{
-  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-  font-size:11px; color:#111827;
-}
+
 
 /* chips */
 .ap-chip{
@@ -571,3 +554,88 @@
 .ap-combo__opt.is-selected { background: #eef2ff; color: #3730a3; }
 .ap-combo__tick { font-size: 14px; opacity: .8; }
 .ap-combo__empty { padding: 12px; color: #6b7280; font-size: 14px; }
+
+
+
+/* PROGRESS */
+/* -------- Progress (compact, accessible, dark-mode friendly) -------- */
+.ap-progress{
+  /* The only thing you change from JS is --progress (e.g., 67%) */
+  --progress: 0%;
+  --bar: var(--ok, #10b981);
+  --track: var(--surface-alt, #f1f5f9);
+  --border: var(--border, #e5e7eb);
+  --label: #0f172a;
+
+  position: relative;
+  width: 160px;
+  height: 12px;
+  background: var(--track);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.ap-progress__bar{
+  width: var(--progress);
+  height: 100%;
+  background: linear-gradient(90deg, var(--bar), color-mix(in oklab, var(--bar), white 18%));
+  transition: width .2s ease-out;
+  will-change: width;
+}
+
+.ap-progress__label{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--label);
+  pointer-events: none;
+  text-shadow: 0 1px 0 rgba(255,255,255,.35);
+}
+
+/* Size variants */
+.ap-progress[data-size="sm"]{ height: 8px; width: 120px; }
+.ap-progress[data-size="md"]{ height: 12px; width: 160px; }
+.ap-progress[data-size="lg"]{ height: 14px; width: 220px; }
+.ap-progress[data-label="none"] .ap-progress__label{ display: none; }
+
+/* Color variants */
+.ap-progress[data-variant="success"]{ --bar: var(--ok, #10b981); }
+.ap-progress[data-variant="info"]   { --bar: #3b82f6; }
+.ap-progress[data-variant="warning"]{ --bar: #f59e0b; }
+.ap-progress[data-variant="danger"] { --bar: #ef4444; }
+
+/* Indeterminate (animated stripes) */
+.ap-progress[data-state="indeterminate"] .ap-progress__bar{
+  width: 40%;
+  background: repeating-linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--bar), white 15%) 0 12px,
+    var(--bar) 12px 24px
+  );
+  animation: ap-progress-stripes 1.1s linear infinite;
+}
+@keyframes ap-progress-stripes {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(250%); }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .ap-progress__bar{ transition: none; }
+  .ap-progress[data-state="indeterminate"] .ap-progress__bar{ animation: none; }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark){
+  .ap-progress{
+    --track:#0f172a; --border:#233046; --label:#e5e7eb;
+    border-color: var(--border);
+    background: var(--track);
+  }
+  .ap-progress__label{ text-shadow: none; }
+}
