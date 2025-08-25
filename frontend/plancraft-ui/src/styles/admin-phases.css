@@ -792,3 +792,79 @@
 /* drag handle inside actions */
 .ap-rowHandle { margin-left:4px; cursor:grab; user-select:none; color:#94a3b8; }
 .ap-rowHandle:active { cursor:grabbing; }
+
+/*====== additional styles =====*/
+
+/* Wider drawer for more text space */
+.ap-drawer--wide { width: min(1040px, 95vw); }
+
+/* Add-new auto-growing textarea */
+.ap-add__textarea {
+  width: 100%; min-height: 40px; max-height: 200px; overflow: hidden; resize: none;
+  padding: 8px 10px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 14px; line-height: 1.45;
+  box-shadow: inset 0 1px 0 rgba(2,6,23,.04);
+}
+.ap-add__textarea:focus { outline: none; border-color: #94a3b8; box-shadow: 0 0 0 3px rgba(148,163,184,.25); }
+
+/* Inline edit textarea styling */
+.ap-inlineEdit__input {
+  width: 100%; min-height: 84px; overflow: hidden; resize: none;
+  padding: 10px 12px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 14px; line-height: 1.5;
+  box-shadow: inset 0 1px 0 rgba(2,6,23,.04);
+}
+.ap-inlineEdit__input:focus { outline: none; border-color: #94a3b8; box-shadow: 0 0 0 3px rgba(148,163,184,.25); }
+.ap-inlineEdit__actions { display: flex; gap: 8px; margin-top: 8px; }
+
+/* Row layout (status · text · actions) — keep from previous step if you already added it */
+.ap-verifyRow {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px 16px; align-items: start;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px;
+  transition: box-shadow .18s ease, border-color .18s ease;
+}
+.ap-verifyRow:hover { border-color:#cbd5e1; box-shadow:0 6px 18px rgba(2,6,23,.06); }
+.ap-verifyRow.is-dragging { opacity:.6; transform:scale(.997); }
+.ap-verifyRow__status { display:flex; align-items:center; gap:10px; padding-right:12px; border-right:1px dashed #e5e7eb; }
+.ap-verifyRow__chips { display:flex; gap:6px; flex-wrap:wrap; }
+.ap-verifyRow__text { min-width:0; }
+.ap-verifyRow__actions { display:flex; gap:8px; align-items:center; padding-left:12px; border-left:1px dashed #e5e7eb; }
+
+/* Status dot (same icon, different color by state) */
+.ap-statusDot { width:22px; height:22px; border-radius:999px; display:grid; place-items:center; border:2px solid currentColor; color:#cbd5e1; background:#fff; }
+.ap-statusDot.is-pass { color:#10b981; }
+.ap-statusDot.is-fail { color:#ef4444; }
+.ap-statusDot.is-note { color:#0ea5e9; }
+.ap-statusDot.is-none { color:#cbd5e1; }
+
+/* Inline “Read more” that sits at the end of clamped text */
+.ap-scenario__text { position: relative; color:#0f172a; line-height:1.5; }
+.ap-scenario__text.is-clamped { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.ap-readmore {
+  position: absolute; right: 0; bottom: 0; border: 0; background: linear-gradient(to right, rgba(255,255,255,0), #fff 48%);
+  padding-left: 8px; font-size: 13px; color:#2563eb; cursor: pointer;
+}
+.ap-readmore:hover { text-decoration: underline; }
+.ap-scenario__toggle { margin-top: 6px; } /* “Show less” link under expanded text */
+
+/* Compact buttons + handle */
+.ap-btn--sm { height: 30px; padding: 0 10px; border-radius: 8px; font-size: 13px; }
+.ap-rowHandle { margin-left:4px; cursor:grab; user-select:none; color:#94a3b8; }
+.ap-rowHandle:active { cursor:grabbing; }
+
+/* DnD placeholder between rows */
+.ap-drop-indicator { height: 12px; border: 2px dashed #94a3b8; border-radius: 8px; background: #f8fafc; margin: 6px 2px; box-shadow: inset 0 1px 0 rgba(2,6,23,.04); }
+
+/* Wrap so the button can be absolute without affecting layout */
+.ap-clampWrap { position: relative; min-width: 0; }
+
+/* Clamp to 2 lines by default; add tiny space for the button */
+.ap-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-right: 72px; padding-bottom: 6px; }
+.ap-clamp.open { -webkit-line-clamp: unset; overflow: visible; padding-right: 0; padding-bottom: 0; }
+
+/* Gentle white Read more/Less button */
+.ap-readMoreBtn {
+  position: absolute; right: -9px; top: 5px;
+  border: 1px solid #e5e7eb; background: #fff; color: #334155;
+  border-radius: 999px; padding: 2px 10px; font-size: 12px; line-height: 1.4;
+  box-shadow: 0 1px 2px rgba(2,6,23,.06); cursor: pointer;
+}
+.ap-readMoreBtn:hover { box-shadow: 0 2px 6px rgba(2,6,23,.12); }

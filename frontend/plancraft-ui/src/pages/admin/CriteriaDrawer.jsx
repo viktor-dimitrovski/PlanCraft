@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useRef, useEffect } from 'react'
 
 export default function CriteriaDrawer({
   phase, items, onClose, onAdd, onUpdate, onDelete, onReorder
@@ -13,13 +13,14 @@ export default function CriteriaDrawer({
     return { total: items.length, required: req.length, ok, pct }
   }, [items])
 
-  // Expand/collapse per item
+  // expand/collapse per item
   const [expanded, setExpanded] = useState({})
-  const toggleExpand = (id) => setExpanded(s => ({ ...s, [id]: !s[id] }))
+  const toggleExpand = id => setExpanded(s => ({ ...s, [id]: !s[id] }))
 
-  // Inline edit
+  // inline edit
   const [editingId, setEditingId] = useState(null)
   const [editTitle, setEditTitle] = useState('')
+  const editRef = useRef(null)
   const startEdit = (item) => { setEditingId(item.id); setEditTitle(item.title || '') }
   const cancelEdit = () => { setEditingId(null); setEditTitle('') }
   const saveEdit = async (id) => {
@@ -28,10 +29,23 @@ export default function CriteriaDrawer({
     cancelEdit()
   }
 
-  // Drag & drop with dashed placeholder
+  // auto-size helper for textareas
+  function autoSize(el) {
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }
+  useEffect(() => { if (editRef.current) autoSize(editRef.current) }, [editingId, editTitle])
+
+  // add-new: auto-growing textarea
+  const addRef = useRef(null)
+  useEffect(() => { if (addRef.current) autoSize(addRef.current) }, [])
+  function onAddChange(e) { setTitle(e.target.value); autoSize(e.target) }
+
+  // d&d with dashed placeholder
   const [dragId, setDragId] = useState(null)
   const [overId, setOverId] = useState(null)
-  const [overPos, setOverPos] = useState('before')  // 'before' | 'after'
+  const [overPos, setOverPos] = useState('before') // 'before' | 'after'
 
   function dragStart(id, e) {
     setDragId(id)
@@ -60,9 +74,16 @@ export default function CriteriaDrawer({
     dragEnd()
   }
 
+  async function add() {
+    const t = title.trim()
+    if (!t) return
+    await onAdd({ title: t, isRequired })
+    setTitle(''); setIsRequired(true)
+    if (addRef.current) { addRef.current.value = ''; autoSize(addRef.current) }
+  }
+
   return (
     <>
-      {/* wider drawer */}
       <div className="ap-drawer ap-drawer--wide">
         <div className="ap-drawer__head">
           <div>
@@ -75,10 +96,14 @@ export default function CriteriaDrawer({
         </div>
 
         <div className="ap-drawer__add">
-          <input
+          <textarea
+            id="new-criterion"
+            className="ap-add__textarea"
             placeholder="New criterion title…"
+            ref={addRef}
+            rows={1}
+            onChange={onAddChange}
             value={title}
-            onChange={e => setTitle(e.target.value)}
           />
           <label className="ap-switch">
             <input
@@ -88,11 +113,7 @@ export default function CriteriaDrawer({
             />
             <span>Required</span>
           </label>
-          <button className="ap-btn" onClick={async () => {
-            if (!title.trim()) return
-            await onAdd({ title: title.trim(), isRequired })
-            setTitle(''); setIsRequired(true)
-          }}>Add</button>
+          <button className="ap-btn" onClick={add}>Add</button>
         </div>
 
         <div className="ap-criteria-list">
@@ -119,8 +140,7 @@ export default function CriteriaDrawer({
                   onDrop={() => drop(item.id)}
                   onDragEnd={dragEnd}
                 >
-
-                  {/* zone 1: status */}
+                  {/* zone 1: status (circle + chips) */}
                   <div className="ap-verifyRow__status">
                     <span className={`ap-statusDot ${state}`} aria-hidden="true">
                       {state === 'is-fail' ? (
@@ -137,43 +157,50 @@ export default function CriteriaDrawer({
                       <span className={`ap-chip ${item.isRequired ? 'ap-chip--req' : 'ap-chip--opt'}`}>
                         {item.isRequired ? 'Required' : 'Optional'}
                       </span>
-                      {item.status === 1 && <span className="ap-chip ap-chip--pass">Passed</span>}
+                      {/* {item.status === 1 && <span className="ap-chip ap-chip--pass">Passed</span>}
                       {item.status === 2 && <span className="ap-chip ap-chip--fail">Failed</span>}
-                      {item.status === 3 && <span className="ap-chip ap-chip--note">Note</span>}
+                      {item.status === 3 && <span className="ap-chip ap-chip--note">Note</span>} */}
                     </div>
                   </div>
 
-                  {/* zone 2: text */}
-                  <div className="ap-verifyRow__text">
-                    {isEditing ? (
-                      <div className="ap-inlineEdit">
-                        <textarea
-                          value={editTitle}
-                          onChange={e => setEditTitle(e.target.value)}
-                          className="ap-inlineEdit__input"
-                          rows={3}
-                          autoFocus
-                        />
-                        <div className="ap-inlineEdit__actions">
-                          <button className="ap-btn ap-btn--sm primary" onClick={() => saveEdit(item.id)}>Save</button>
-                          <button className="ap-btn ap-btn--sm ghost" onClick={cancelEdit}>Cancel</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className={`ap-scenario__text ${isExpanded ? 'is-expanded' : 'is-clamped'}`}>
-                          {item.title}
-                        </div>
-                        <button className="ap-link ap-scenario__toggle" onClick={() => toggleExpand(item.id)}>
-                          {isExpanded ? 'Show less' : 'Read more'}
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  {/* zone 2: text (inline read-more & inline edit) */}
 
-                  {/* zone 3: actions */}
+{/* zone 2: text — simple always-visible Read more button */}
+<div className="ap-verifyRow__text">
+  {isEditing ? (
+    <div className="ap-inlineEdit">
+      <textarea
+        ref={editRef}
+        value={editTitle}
+        onChange={e => { setEditTitle(e.target.value); autoSize(e.target) }}
+        className="ap-inlineEdit__input"
+        rows={3}
+        autoFocus
+      />
+      <div className="ap-inlineEdit__actions">
+        <button className="ap-btn ap-btn--sm primary" onClick={() => saveEdit(item.id)}>Save</button>
+        <button className="ap-btn ap-btn--sm ghost" onClick={cancelEdit}>Cancel</button>
+      </div>
+    </div>
+  ) : (
+    <div className="ap-clampWrap">
+      <div className={`ap-clamp ${isExpanded ? 'open' : ''}`}>
+        {item.title}
+      </div>
+      <button
+        className="ap-readMoreBtn"
+        onClick={() => toggleExpand(item.id)}
+      >
+        {isExpanded ? 'Less' : 'Read more'}
+      </button>
+    </div>
+  )}
+</div>
+
+
+                  {/* zone 3: actions (edit/delete + handle) */}
                   <div className="ap-verifyRow__actions" role="toolbar" aria-label="Actions">
-                    <button className="ap-btn ap-btn--sm" onClick={() => startEdit(item)}>Edit</button>
+                    {!isEditing && <button className="ap-btn ap-btn--sm" onClick={() => startEdit(item)}>Edit</button>}
                     <button className="ap-btn danger ap-btn--sm" onClick={() => onDelete(item.id)}>Delete</button>
                     <div className="ap-rowHandle" title="Drag to reorder">⋮⋮</div>
                   </div>
