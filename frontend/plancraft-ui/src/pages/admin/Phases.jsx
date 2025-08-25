@@ -287,9 +287,12 @@ export default function AdminPhases() {
   }
 
   return (
-    <div className="admin-phases">
-      <header className="ap-header">
-        <div className="ap-title">Administration · Phases</div>
+    <section className="adminCard">
+      <header className="adminCard__head">
+        <div>
+          <h3 className="adminCard__title">Administration · Phases</h3>
+          <p className="adminCard__sub">Create and manage Phases, Use-Cases, Verify, Track Phase Progress</p>
+        </div>
 
         <div
           className="ap-actions"
@@ -338,7 +341,13 @@ export default function AdminPhases() {
             + Add Phase
           </button>
         </div>
+
+        {/* <div className="adminCard__meta">{loading ? 'Loading…' : `xy total`}</div> */}
       </header>
+
+
+
+
 
       <PhaseGrid
         loading={loading}
@@ -393,6 +402,6 @@ export default function AdminPhases() {
           onToggleStatus={updateCriterionStatus}
         />
       )}
-    </div>
+    </section>
   );
 }

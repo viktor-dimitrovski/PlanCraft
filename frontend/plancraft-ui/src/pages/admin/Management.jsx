@@ -77,48 +77,47 @@ export default function Management() {
     <div className="adminWrap">
       <div className="adminContainer">
         <header className="adminHeader">
-          <div>
+          <div className="adminTitle">
             <h2 className="adminTitle">Administration</h2>
-            <p className="adminSubtitle">Banks, projects, phases, tasks & users — enterprise-ready CRUD.</p>
+            <p className="adminSubtitle">Banks, projects, phases, tasks & users</p>
           </div>
           <div className="adminActions">
+            <div className="adminTabs">
+              <button
+                className={`tabBtn ${tab==='banks'?'active':''}`}
+                onMouseEnter={preload.banks} onFocus={preload.banks}
+                onClick={()=>setTab('banks')}
+              >Banks</button>
+              <button
+                className={`tabBtn ${tab==='projects'?'active':''}`}
+                onMouseEnter={preload.projects} onFocus={preload.projects}
+                onClick={()=>setTab('projects')}
+              >Projects</button>
+              <button
+                className={`tabBtn ${tab==='phases'?'active':''}`}
+                onMouseEnter={preload.phases} onFocus={preload.phases}
+                onClick={()=>setTab('phases')}
+              >Phases</button>
+              {/* NEW */}
+              <button
+                className={`tabBtn ${tab==='adminPhases'?'active':''}`}
+                onMouseEnter={preload.adminPhases} onFocus={preload.adminPhases}
+                onClick={()=>setTab('adminPhases')}
+              >Phases (Advanced)</button>
+              <button
+                className={`tabBtn ${tab==='tasks'?'active':''}`}
+                onMouseEnter={preload.tasks} onFocus={preload.tasks}
+                onClick={()=>setTab('tasks')}
+              >Tasks</button>
+              <button
+                className={`tabBtn ${tab==='users'?'active':''}`}
+                onMouseEnter={preload.users} onFocus={preload.users}
+                onClick={()=>setTab('users')}
+              >Users</button>
+            </div>
             <button className="btn" onClick={refreshAll}>Refresh all</button>
           </div>
         </header>
-
-        <div className="adminTabs">
-          <button
-            className={`tabBtn ${tab==='banks'?'active':''}`}
-            onMouseEnter={preload.banks} onFocus={preload.banks}
-            onClick={()=>setTab('banks')}
-          >Banks</button>
-          <button
-            className={`tabBtn ${tab==='projects'?'active':''}`}
-            onMouseEnter={preload.projects} onFocus={preload.projects}
-            onClick={()=>setTab('projects')}
-          >Projects</button>
-          <button
-            className={`tabBtn ${tab==='phases'?'active':''}`}
-            onMouseEnter={preload.phases} onFocus={preload.phases}
-            onClick={()=>setTab('phases')}
-          >Phases</button>
-          {/* NEW */}
-          <button
-            className={`tabBtn ${tab==='adminPhases'?'active':''}`}
-            onMouseEnter={preload.adminPhases} onFocus={preload.adminPhases}
-            onClick={()=>setTab('adminPhases')}
-          >Phases (Advanced)</button>
-          <button
-            className={`tabBtn ${tab==='tasks'?'active':''}`}
-            onMouseEnter={preload.tasks} onFocus={preload.tasks}
-            onClick={()=>setTab('tasks')}
-          >Tasks</button>
-          <button
-            className={`tabBtn ${tab==='users'?'active':''}`}
-            onMouseEnter={preload.users} onFocus={preload.users}
-            onClick={()=>setTab('users')}
-          >Users</button>
-        </div>
 
         {tab==='banks' && (
           <Suspense fallback={<LoadingCard label="Loading Banks…" />}>

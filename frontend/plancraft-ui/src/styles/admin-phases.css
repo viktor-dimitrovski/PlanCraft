@@ -22,11 +22,18 @@
 .ap-empty, .ap-loader { padding:16px; color:#64748b; }
 .ap-error{ color:#b91c1c; padding:12px; }
 
-.ap-title-cell .ap-title-strong{ font-weight:700; color:#0f172a; }
+.ap-title-cell .ap-title-strong{ font-weight:600; color:#0f172a; }
 .ap-title-cell .ap-meta{ font-size:12px; color:#64748b; margin-top:2px; }
-.ap-pill{ display:inline-block; min-width:28px; text-align:center; padding:2px 6px; border-radius:999px; background:#f1f5f9; }
+.ap-pill { display:inline-block; min-width:32px; text-align:center; padding:4px 10px; border-radius:999px; font-weight:600; font-size:14px; transition:all 0.2s ease-in-out; background:#f1f5f9; color:#0f172a; border:1.5px solid #cbd5e1; }
+.ap-pill:hover { transform:scale(1.05); box-shadow:0 2px 8px rgba(0,0,0,0.12); }
 
-.ap-badge{ display:inline-block; padding:4px 8px; border-radius:999px; font-size:12px; }
+.ap-pill.none { background:#f8fafc; color:#64748b; border:1.5px solid #cbd5e1; }       /* 0 → нема приоритет */
+.ap-pill.highest { background:#fef2f2; color:#dc2626; border:1.5px solid #ef4444; }   /* 1 → највисок */
+.ap-pill.high { background:#fffbeb; color:#d97706; border:1.5px solid #fbbf24; }      /* 2–3 → висок */
+.ap-pill.low { background:#ecfdf5; color:#059669; border:1.5px solid #34d399; }       /* 4+ → низок */
+
+  
+.ap-badge{ display:inline-block; padding:4px 12px; border-radius:999px; font-size:14px; font-weight: 400;}
 
 .ap-dep{ background:#eef2ff; color:#3730a3; padding:2px 8px; border-radius:999px; font-size:12px; }
 
@@ -45,6 +52,8 @@
 .ap-modal__foot{ display:flex; justify-content:flex-end; gap:8px; padding:10px 12px; border-top:1px solid #e5e7eb; }
 
 /* Drawer */
+/* Wider drawer just for this screen */
+.ap-drawer--wide { width: min(1040px, 95vw) !important; }
 .ap-drawer{ position:fixed; right:0; top:0; bottom:0; width:min(720px, 92vw); background:#fff; border-left:1px solid #e5e7eb; z-index:2147483200; display:flex; flex-direction:column; }
 .ap-drawer-backdrop{ position:fixed; inset:0; background:rgba(2,6,23,.35); z-index:2147483199; }
 .ap-drawer__head{ display:flex; align-items:center; padding:12px; gap:8px; border-bottom:1px solid #e5e7eb; }
@@ -166,6 +175,9 @@
 
 /* sitno dotjerivanje da redovi izgledaju jednako visoki */
 .ap-table tbody tr{
+  height: var(--ap-row-h);
+}
+.phase-table tbody tr{
   height: var(--ap-row-h);
 }
 
@@ -300,7 +312,7 @@
 .ap-btn.primary:hover{ filter:brightness(1.04); }
 .ap-btn.danger{ background:#fee2e2; color:var(--fail); border-color:#fecaca; }
 .ap-btn.danger.outline{ background:transparent; color:var(--fail); border-color:#fca5a5; }
-.ap-btn.ghost{ background:transparent; color:#2926ed; border-color:var(--border); }
+
 
 /* existing note presentation */
 .ap-card__note{
@@ -680,22 +692,6 @@
 .ap-title-strong { color: #0f172a; font-weight: 700; }
 .ap-meta { color: #475569; }
 
-/* Pill (Priority) pojasna ivica */
-.ap-pill {
-  background: #fff;
-  color: #0f172a;
-  border: 1.5px solid var(--line-strong);
-  padding: 2px 8px;
-  border-radius: 999px;
-}
-
-/* Status badge: vidliva ivica, no svetla pozadina */
-.ap-badge {
-  border: 1px solid currentColor;
-  background: color-mix(in oklab, currentColor, white 88%);
-  font-weight: 600;
-}
-
 /* Action kolona: prostor i raspored */
 .ap-actions-col {
   white-space: nowrap;
@@ -720,13 +716,79 @@
   transition: background .15s, border-color .15s, box-shadow .15s;
 }
 
-.ap-btn:hover { background: var(--btn-bg-hover); }
+/* .ap-btn:hover { background: var(--btn-bg-hover); } */
 .ap-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
 
 /* Specific variants as white with colored outline/text */
-.ap-btn.verify  { --btn-fg: #1d4ed8; --btn-bd: #93c5fd; }
-.ap-btn.danger  { --btn-fg: #b91c1c; --btn-bd: #fecaca; }
-.ap-btn.ghost   { /* ostava belo + sivo border (default) */ }
+.ap-btn { padding:6px 14px; border-radius:6px; font-size:14px; font-weight:500; border:1px solid transparent; cursor:pointer; transition:all 0.2s ease-in-out; }
+.btn-criteria { background:#f1f5f9; color:#0f172a; border:1px solid #cbd5e1; }
+.btn-criteria:hover { background:#e2e8f0; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.btn-verify { background:#eff6ff; color:#2563eb; border:1px solid #3b82f6; }
+.btn-verify:hover { background:#dbeafe; box-shadow:0 2px 6px rgba(37,99,235,0.2); }
+.btn-edit { background:#fff7ed; color:#ea580c; border:1px solid #f97316; }
+.btn-edit:hover { background:#ffedd5; box-shadow:0 2px 6px rgba(234,88,12,0.2); }
+.btn-delete { background:#fef2f2; color:#dc2626; border:1px solid #ef4444; }
+.btn-delete:hover { background:#fee2e2; box-shadow:0 2px 6px rgba(220,38,38,0.2); }
+
 
 /* Progress bar border malo pojako (ako ja koristis .ap-progress) */
 .ap-progress { --border: #cbd5e1; }
+
+
+
+/*==================================================================*/
+/* Drawer: compact verification card rows */
+/*==================================================================*/
+
+/* Grid-style row (status · text · actions) */
+.ap-verifyRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px 16px;
+  align-items: start;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: box-shadow .18s ease, border-color .18s ease;
+}
+.ap-verifyRow:hover { border-color:#cbd5e1; box-shadow:0 6px 18px rgba(2,6,23,.06); }
+.ap-verifyRow.is-dragging { opacity:.6; transform:scale(.997); }
+
+/* gentle column separators */
+.ap-verifyRow__text { min-width: 0; }
+.ap-verifyRow__actions { display:flex; gap:8px; align-items:center; padding-left:12px; border-left:1px dashed #e5e7eb; }
+
+/* status cluster */
+.ap-verifyRow__status { display:flex; align-items:center; gap:10px; padding-right:12px; border-right:1px dashed #e5e7eb; }
+.ap-verifyRow__chips { display:flex; gap:6px; flex-wrap:wrap; }
+
+/* circular status icon (pass/fail/note/none) */
+.ap-statusDot {
+  width:22px; height:22px; border-radius:999px; display:inline-grid; place-items:center;
+  border:2px solid currentColor; color:#94a3b8; background:#fff;
+}
+.ap-statusDot.is-pass { color:#10b981; }   /* green check */
+.ap-statusDot.is-fail { color:#ef4444; }   /* red X    */
+.ap-statusDot.is-note { color:#0ea5e9; }   /* blue check (pass with note) */
+.ap-statusDot.is-none { color:#cbd5e1; }   /* neutral  */
+
+/* read more / clamp */
+.ap-scenario__text { color:#0f172a; line-height:1.5; }
+.ap-scenario__text.is-clamped {
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.ap-scenario__toggle { margin-top:6px; }
+
+/* compact buttons */
+.ap-btn--sm { height:30px; padding:0 10px; border-radius:8px; font-size:13px; }
+
+/* dashed drop placeholder between rows */
+.ap-drop-indicator {
+  height: 12px; border: 2px dashed #94a3b8; border-radius: 8px; background: #f8fafc;
+  margin: 6px 2px; box-shadow: inset 0 1px 0 rgba(2,6,23,.04);
+}
+
+/* drag handle inside actions */
+.ap-rowHandle { margin-left:4px; cursor:grab; user-select:none; color:#94a3b8; }
+.ap-rowHandle:active { cursor:grabbing; }

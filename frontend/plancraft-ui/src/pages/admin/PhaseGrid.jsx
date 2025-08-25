@@ -25,16 +25,16 @@ export default function PhaseGrid({
   if (error) return <div className="ap-error">{error}</div>
 
   return (
-    <div className="ap-table-wrap adminHeader">
-      <table className="ap-table tableWrap">
+    <div className="tableWrap">
+      <table className="adminTable phase-table">
         <thead>
           <tr>
             <th style={{ width: 70 }}>Priority</th>
             <th>Phase</th>
-            <th style={{ width: 110 }}>Estimate (d)</th>
-            <th style={{ width: 130 }}>Start date</th>
-            <th style={{ width: 140 }}>Status</th>
-            <th style={{ width: 240 }}>Completed</th>
+            <th style={{ width: 100 }}>Estimate (d)</th>
+            <th style={{ width: 100 }}>Start date</th>
+            <th style={{ width: 120 }}>Status</th>
+            <th style={{ width: 180 }}>Completed</th>
             <th style={{ width: 180 }}>Depends on</th>
             <th style={{ width: 300 }}>Actions</th>
           </tr>
@@ -60,7 +60,15 @@ export default function PhaseGrid({
               const needToggle = desc.length > 120 // show expander only for longer texts
               return (
                 <tr key={p.id} className={`ap-row ${isOpen ? 'is-expanded' : ''}`}>
-                  <td><span className="ap-pill">{p.priority ?? 0}</span></td>
+                  <td>
+                    <span className={`ap-pill ${
+                      p.priority === 0 ? "none" :
+                      p.priority === 1 ? "highest" :
+                      p.priority <= 3 ? "high" : "low"
+                    }`}>
+                      {p.priority ?? 0}
+                    </span>
+                  </td>
 
                   <td>
                     <div className="ap-title-cell">
@@ -99,11 +107,12 @@ export default function PhaseGrid({
                   </td>
 
                   <td className="ap-actions-col">
-                    <button className="ap-btn ghost" onClick={() => onOpenCriteria(p)}>Criteria</button>
-                    <button className="ap-btn verify" onClick={() => onStartVerification(p)}>Verify</button>
-                    <button className="ap-btn ghost" onClick={() => onEdit(p)}>Edit</button>
-                    <button className="ap-btn danger" onClick={() => onDelete(p)}>Delete</button>
+                    <button className="ap-btn btn-criteria" onClick={() => onOpenCriteria(p)}>Criteria</button>
+                    <button className="ap-btn btn-verify" onClick={() => onStartVerification(p)}>Verify</button>
+                    <button className="ap-btn btn-edit" onClick={() => onEdit(p)}>Edit</button>
+                    <button className="ap-btn btn-delete" onClick={() => onDelete(p)}>Delete</button>
                   </td>
+
                 </tr>
               )
             })
