@@ -256,14 +256,9 @@ export default function AdminPhases() {
       ...p,
       uiTitle: `bank:${p.title || ""}`,
       uiStart: p.startDate ? ddmmyyyy(p.startDate) : "",
-      uiPercent:
-        typeof p.completedPct === "number"
-          ? p.completedPct
-          : p.criteria
-          ? calcPercentComplete(p.criteria)
-          : 0,
     }));
   }, [phases]);
+
 
   // Projects filtered by bank (search is inside Combo)
   const visibleProjects = useMemo(() => {

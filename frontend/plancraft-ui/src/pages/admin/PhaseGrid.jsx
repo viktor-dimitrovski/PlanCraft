@@ -31,7 +31,7 @@ export default function PhaseGrid({
           <tr>
             <th style={{ width: 70 }}>Priority</th>
             <th>Phase</th>
-            <th style={{ width: 100 }}>Estimate (d)</th>
+            <th style={{ width: 100 }}>Estimate</th>
             <th style={{ width: 100 }}>Start date</th>
             <th style={{ width: 120 }}>Status</th>
             <th style={{ width: 180 }}>Completed</th>
@@ -57,14 +57,20 @@ export default function PhaseGrid({
             normalized.map(p => {
               const isOpen = expanded.has(p.id)
               const desc = p.description || ''
-              const needToggle = desc.length > 120 // show expander only for longer texts
+              const needToggle = desc.length > 120
+
+              const percent = Math.max(
+                0,
+                Math.min(100, Math.round(Number(p.percentageComplete) || 0))
+              )
+
               return (
                 <tr key={p.id} className={`ap-row ${isOpen ? 'is-expanded' : ''}`}>
                   <td>
                     <span className={`ap-pill ${
-                      p.priority === 0 ? "none" :
-                      p.priority === 1 ? "highest" :
-                      p.priority <= 3 ? "high" : "low"
+                      p.priority === 0 ? 'none' :
+                      p.priority === 1 ? 'highest' :
+                      p.priority <= 3 ? 'high' : 'low'
                     }`}>
                       {p.priority ?? 0}
                     </span>
@@ -98,7 +104,16 @@ export default function PhaseGrid({
                   <td>{p.estimatedDays ?? p.EstimatedDays ?? ''}</td>
                   <td>{p.uiStart}</td>
                   <td><StatusBadge value={p.status} /></td>
-                  <td><Progress value={p.uiPercent ?? 0} /></td>
+
+                  <td>
+                    <Progress value={percent} />
+                    <MiniStats
+                      total={p.requiredTotal ?? 0}
+                      pass={p.requiredPassed ?? 0}
+                      fail={p.requiredFailed ?? 0}
+                      untested={p.requiredUntested ?? 0}
+                    />
+                  </td>
 
                   <td>
                     {p.dependantPhaseTitle
@@ -112,7 +127,6 @@ export default function PhaseGrid({
                     <button className="ap-btn btn-edit" onClick={() => onEdit(p)}>Edit</button>
                     <button className="ap-btn btn-delete" onClick={() => onDelete(p)}>Delete</button>
                   </td>
-
                 </tr>
               )
             })
@@ -126,7 +140,7 @@ export default function PhaseGrid({
 function StatusBadge({ value }) {
   // 0 Planned,1 InProgress,2 Blocked,3 Done,9 Canceled
   const map = {
-    0: { t: 'Planned',      c: '#111827' },   // darker for contrast
+    0: { t: 'Planned',      c: '#111827' },
     1: { t: 'In Progress',  c: '#2563eb' },
     2: { t: 'Blocked',      c: '#ef4444' },
     3: { t: 'Done',         c: '#16a34a' },
@@ -134,25 +148,15 @@ function StatusBadge({ value }) {
   }
   const m = map[value ?? 0] ?? map[0]
   return (
-    <span
-      className="ap-badge"
-      style={{ background: m.c + '20', color: m.c }}
-    >
+    <span className="ap-badge" style={{ background: m.c + '20', color: m.c }}>
       {m.t}
     </span>
   )
 }
 
-// Progress.jsx
-function Progress({
-  value,
-  className = '',
-  ariaLabel = 'Progress',
-  showLabel = true,
-}) {
+function Progress({ value, className = '', ariaLabel = 'Progress', showLabel = true }) {
   const n = Number.isFinite(+value) ? +value : 0;
   const v = Math.max(0, Math.min(100, n));
-
   return (
     <div
       className={`ap-progress ${className}`}
@@ -161,6 +165,7 @@ function Progress({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={v}
+      data-size="md"
     >
       <div className="ap-progress__bar" style={{ width: `${v}%` }} />
       {showLabel && <span className="ap-progress__label">{v}%</span>}
@@ -168,3 +173,14 @@ function Progress({
   );
 }
 
+function MiniStats({ total, pass, fail, untested }) {
+  if (!total) return <span className="ap-meta">—</span>
+  return (
+    <div className="ap-microstats" title={`Required ${total} • Passed ${pass} • Failed ${fail} • Untested ${untested}`}>
+      <span className="ms ms-total">Req {total}</span>
+      <span className="ms ms-pass">✓ {pass}</span>
+      <span className="ms ms-fail">✗ {fail}</span>
+      <span className="ms ms-untested">– {untested}</span>
+    </div>
+  )
+}

@@ -611,7 +611,7 @@
 
 /* Size variants */
 .ap-progress[data-size="sm"]{ height: 8px; width: 120px; }
-.ap-progress[data-size="md"]{ height: 12px; width: 160px; }
+.ap-progress[data-size="md"]{ height: 18px; width: 160px; }
 .ap-progress[data-size="lg"]{ height: 14px; width: 220px; }
 .ap-progress[data-label="none"] .ap-progress__label{ display: none; }
 
@@ -868,3 +868,20 @@
   box-shadow: 0 1px 2px rgba(2,6,23,.06); cursor: pointer;
 }
 .ap-readMoreBtn:hover { box-shadow: 0 2px 6px rgba(2,6,23,.12); }
+
+
+
+
+
+
+
+
+
+
+/* compact micro-stats under the progress bar */
+.ap-microstats { margin-top:4px; font-size:14px; color:#64748b; display:flex; gap:14px; align-items:center; flex-wrap:wrap; position: absolute;}
+.ap-microstats .ms-total { color:#334155; }
+.ap-microstats .ms-pass { color:#16a34a; }
+.ap-microstats .ms-fail { color:#dc2626; }
+.ap-microstats .ms-untested { color:#6b7280; }
+

@@ -7,7 +7,7 @@ public static class PhasesHandlers
 
     public static async Task<IReadOnlyList<PhaseSummaryDto>> GetByProject(PlanCraftDb db, int projectId)
     {
-        // 1) Fetch scalar phase fields for the grid
+        // 1) Base phase data for the grid
         var phases = await db.ProjectPhases
             .Where(p => p.ProjectId == projectId)
             .OrderBy(p => p.Id)
@@ -23,70 +23,57 @@ public static class PhasesHandlers
                 Priority = p.Priority,
                 NoAssignedDays = p.NoAssignedDays,
 
-                // AcceptanceRuns / Assignments kept as empty lists by default.
-                // (Hydrate here if you actually need them in the grid.)
+                // Map your real type here if different
+                //ParallelWith = p.ParallelWith.Select(x => x.WithPhaseId).ToList(),
+
+                // AcceptanceRuns / Assignments left empty for now
             })
             .ToListAsync();
 
-        // 2) Compute required counts from latest verification run per phase
+        if (phases.Count == 0) return phases;
+
+        var phaseIds = phases.Select(x => x.Id).ToList();
+
+        // 2) Aggregate REQUIRED criteria by overall (current) status on PhaseAcceptanceCriteria
+        var agg = await db.PhaseAcceptanceCriteria
+            .Where(c => phaseIds.Contains(c.PhaseId) && c.IsRequired)
+            .GroupBy(c => c.PhaseId)
+            .Select(g => new
+            {
+                PhaseId = g.Key,
+                Total = g.Count(),
+                Passed = g.Count(c => c.Status == AcceptanceStatus.Pass
+                                   || c.Status == AcceptanceStatus.AcceptedWithNote),
+                Failed = g.Count(c => c.Status == AcceptanceStatus.Fail),
+                // Untested will be derived = Total - (Passed + Failed)
+            })
+            .ToListAsync();
+
+        var byPhase = agg.ToDictionary(x => x.PhaseId);
+
+        // 3) Fill DTO totals and percentage
         foreach (var dto in phases)
         {
-            // Required criteria for this phase
-            var requiredIds = await db.PhaseAcceptanceCriteria
-                .Where(c => c.PhaseId == dto.Id && c.IsRequired)
-                .Select(c => c.Id)
-                .ToListAsync();
-
-            dto.RequiredTotal = requiredIds.Count;
-
-            if (dto.RequiredTotal == 0)
+            if (byPhase.TryGetValue(dto.Id, out var a))
             {
+                dto.RequiredTotal = a.Total;
+                dto.RequiredPassed = a.Passed;
+                dto.RequiredFailed = a.Failed;
+                dto.RequiredUntested = Math.Max(0, a.Total - (a.Passed + a.Failed));
+                dto.PercentageComplete = a.Total == 0 ? 0 : Math.Round(100.0 * a.Passed / a.Total, 1);
+            }
+            else
+            {
+                dto.RequiredTotal = 0;
                 dto.RequiredPassed = 0;
                 dto.RequiredFailed = 0;
                 dto.RequiredUntested = 0;
                 dto.PercentageComplete = 0;
-                continue;
             }
-
-            // Latest run for this phase (if any)
-            var runId = await db.PhaseAcceptanceRuns
-                .Where(r => r.PhaseId == dto.Id)
-                .OrderByDescending(r => r.VerifiedAt)
-                .Select(r => (int?)r.Id)
-                .FirstOrDefaultAsync();
-
-            if (runId is null)
-            {
-                dto.RequiredPassed = 0;
-                dto.RequiredFailed = 0;
-                dto.RequiredUntested = dto.RequiredTotal;
-                dto.PercentageComplete = 0;
-                continue;
-            }
-
-            // Pull statuses only for required criteria in the latest run
-            var statuses = await db.PhaseAcceptanceResults
-                .Where(r => r.RunId == runId.Value && requiredIds.Contains(r.CriteriaId))
-                .Select(r => r.Status)
-                .ToListAsync();
-
-            // Treat AcceptedWithNote as Passed
-            var passed = statuses.Count(s => s == AcceptanceStatus.Pass || s == AcceptanceStatus.AcceptedWithNote);
-            var failed = statuses.Count(s => s == AcceptanceStatus.Fail);
-            var untested = Math.Max(0, dto.RequiredTotal - (passed + failed)); // anything else => untested
-
-            dto.RequiredPassed = passed;
-            dto.RequiredFailed = failed;
-            dto.RequiredUntested = untested;
-
-            dto.PercentageComplete = Math.Round(100.0 * passed / dto.RequiredTotal, 1);
         }
 
         return phases;
     }
-
-
-
 
     public static async Task<IResult> Create(PlanCraftDb db, int projectId, ProjectPhase ph)
     {
@@ -198,19 +185,20 @@ public sealed class PhaseSummaryDto
     public int Status { get; set; }
     public string? Description { get; set; }
     public int? Priority { get; set; }
+    public List<int> ParallelWith { get; set; } = new();
     public int NoAssignedDays { get; set; }
 
-    // Keep these, but we won't hydrate here (match your current JSON shape)
+    // Keep shapes used by your grid (hydrate if/when needed)
     public List<object> AcceptanceRuns { get; set; } = new();
     public List<object> Assignments { get; set; } = new();
 
-    // New fields (concise & self-descriptive)
+    // New concise, self-descriptive fields
     public int RequiredTotal { get; set; }
     public int RequiredPassed { get; set; }     // Pass + AcceptedWithNote
     public int RequiredFailed { get; set; }     // Fail
-    public int RequiredUntested { get; set; }   // not present in latest run / reset
-
-    public double PercentageComplete { get; set; }  // = RequiredPassed / RequiredTotal * 100
+    public int RequiredUntested { get; set; }   // everything else
+    public double PercentageComplete { get; set; } // = RequiredPassed / RequiredTotal * 100
 }
+
 
 
