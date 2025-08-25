@@ -24,7 +24,7 @@
 
 /* Center and limit width for readability on big monitors */
 .adminContainer {
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
   display: grid;
   gap: 16px;

@@ -300,7 +300,7 @@
 .ap-btn.primary:hover{ filter:brightness(1.04); }
 .ap-btn.danger{ background:#fee2e2; color:var(--fail); border-color:#fecaca; }
 .ap-btn.danger.outline{ background:transparent; color:var(--fail); border-color:#fca5a5; }
-.ap-btn.ghost{ background:transparent; color:#374151; border-color:var(--border); }
+.ap-btn.ghost{ background:transparent; color:#2926ed; border-color:var(--border); }
 
 /* existing note presentation */
 .ap-card__note{
@@ -639,3 +639,94 @@
   }
   .ap-progress__label{ text-shadow: none; }
 }
+
+
+
+
+
+/* //////////////////////////////////////////////////////////// */
+/* ===== Stronger grid contrast + white action buttons (admin phases) ===== */
+
+/* Table frame & baseline colors */
+.ap-table {
+  --line: #cbd5e1;       /* slate-300 */
+  --line-strong: #94a3b8;/* slate-400 */
+  /* border: 1.5px solid var(--line); */
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #fff;
+}
+
+/* Header: pogolem kontrast i jasni linii */
+.ap-table thead th {
+  padding: 12px 14px;
+  font-weight: 700;
+  color: #0f172a;              /* pothkresen tekst */
+  background: #f8fafc;
+  border-bottom: 2px solid var(--line-strong);
+}
+
+/* Cells: pojak bottom border */
+.ap-table td {
+  padding: 12px 14px;
+  border-bottom: 1.5px solid var(--line);
+}
+
+/* Zebra + hover za citlivost */
+.ap-table tbody tr:nth-child(even) td { background: #fcfdff; }
+.ap-table tbody tr:hover td { background: #f5f9ff; }
+
+/* Naslov vo kolona “Phase” potemen i pokraten */
+.ap-title-strong { color: #0f172a; font-weight: 700; }
+.ap-meta { color: #475569; }
+
+/* Pill (Priority) pojasna ivica */
+.ap-pill {
+  background: #fff;
+  color: #0f172a;
+  border: 1.5px solid var(--line-strong);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* Status badge: vidliva ivica, no svetla pozadina */
+.ap-badge {
+  border: 1px solid currentColor;
+  background: color-mix(in oklab, currentColor, white 88%);
+  font-weight: 600;
+}
+
+/* Action kolona: prostor i raspored */
+.ap-actions-col {
+  white-space: nowrap;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* White buttons: default, Verify (blue outline), Delete (red outline) */
+.ap-btn {
+  --btn-bg: #fff;
+  --btn-fg: #0f172a;
+  --btn-bd: #cbd5e1;
+  --btn-bg-hover: #f8fafc;
+
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border: 1.5px solid var(--btn-bd);
+  transition: background .15s, border-color .15s, box-shadow .15s;
+}
+
+.ap-btn:hover { background: var(--btn-bg-hover); }
+.ap-btn:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+
+/* Specific variants as white with colored outline/text */
+.ap-btn.verify  { --btn-fg: #1d4ed8; --btn-bd: #93c5fd; }
+.ap-btn.danger  { --btn-fg: #b91c1c; --btn-bd: #fecaca; }
+.ap-btn.ghost   { /* ostava belo + sivo border (default) */ }
+
+/* Progress bar border malo pojako (ako ja koristis .ap-progress) */
+.ap-progress { --border: #cbd5e1; }

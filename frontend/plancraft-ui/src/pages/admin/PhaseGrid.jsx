@@ -25,8 +25,8 @@ export default function PhaseGrid({
   if (error) return <div className="ap-error">{error}</div>
 
   return (
-    <div className="ap-table-wrap">
-      <table className="ap-table">
+    <div className="ap-table-wrap adminHeader">
+      <table className="ap-table tableWrap">
         <thead>
           <tr>
             <th style={{ width: 70 }}>Priority</th>
