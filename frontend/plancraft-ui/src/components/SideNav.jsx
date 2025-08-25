@@ -6,8 +6,18 @@ export default function SideNav({ active, open, onClose }) {
   const links = [
     { href: "#/grid", label: "Planner", icon: IconCalendar },
     { href: "#/admin", label: "Admin", icon: IconCog },
+    { href: '#/admin/phases',   label: 'Admin • Phases', icon: IconListCheck },
     { href: "#/planner", label: "Legacy Grid", icon: IconGrid },
   ];
+
+  function IconListCheck(props){
+    return (
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" {...props}>
+        <path d="M4 6h10M4 12h10M4 18h10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+        <path d="M17 7l2 2 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  }
 
   // Mount the drawer + backdrop to <body> so they sit above any headers/toolbars
   return createPortal(
