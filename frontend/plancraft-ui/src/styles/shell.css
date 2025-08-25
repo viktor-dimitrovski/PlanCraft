@@ -1,0 +1,98 @@
+/* src/styles/shell.css */
+
+/* App shell now does not reserve a left column; nav is a floating drawer */
+.shell {
+  min-height: 100vh;
+  background: var(--bg, #f4f7fb);
+  position: relative;
+}
+.shell-main { min-width: 0; }
+
+/* Drawer */
+.sidenav {
+  --navW: 280px;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  width: var(--navW);
+  height: calc(100vh - 24px);
+  background: var(--surface, #fff);
+  border: 1px solid var(--stroke, #e5e7eb);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0,0,0,.12);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1001; 
+  will-change: transform;
+  backface-visibility: hidden;
+
+  /* hidden by default (off-canvas) */
+  transform: translateX(calc(-100% - 16px));
+  opacity: 0;
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+.sidenav.is-open {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.sidenav__brand {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 8px; font-weight: 600;
+  position: relative;
+}
+.sidenav__gh { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:6px; background:#111827; color:#fff; font-size:12px; font-weight:700; }
+.sidenav__title { color:#111827; }
+
+.sidenav__close {
+  margin-left: auto;
+  border: 1px solid var(--stroke, #e5e7eb);
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+.sidenav__group { display:flex; flex-direction:column; gap:4px; }
+.sidenav__item {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 10px; border-radius:8px; text-decoration:none; color:inherit;
+}
+.sidenav__item:hover { background:#f3f4f6; }
+.sidenav__item.active { background:#e5e7eb; font-weight:600; }
+.sidenav__icon { flex:0 0 auto; }
+.sidenav__label { white-space:nowrap; }
+
+/* Backdrop */
+.nav-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+  z-index: 1000;
+}
+.nav-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Launcher (the small floating button to open the drawer) */
+.nav-launcher {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 60;
+  border: 1px solid #93c5fd;
+  background: #fff;
+  border-radius: 999px;
+  padding: 10px 14px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, .08);
+  cursor: pointer;
+}
+.nav-launcher:hover { background:#f8fafc; }
+
+/* Hide launcher while drawer is open */
+.nav-open .nav-launcher{ opacity: 0; pointer-events: none; }

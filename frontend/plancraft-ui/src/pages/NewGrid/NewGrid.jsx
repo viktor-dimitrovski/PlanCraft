@@ -5,6 +5,7 @@ import { buildMonthSegments } from './calendar'
 import './newgrid.css'
 import TaskLayer from './task-layer/TaskLayer'
 import TodayMarker from './task-layer/TodayMarker'
+import NonWorkLayer from './task-layer/NonWorkLayer'
 
 // Generate demo people list (placeholder). In later steps we'll wire true data.
 

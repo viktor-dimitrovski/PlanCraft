@@ -4,8 +4,40 @@ namespace PlanCraft.Api.Endpoints;
 
 public static class PhasesHandlers
 {
-    public static Task<List<ProjectPhase>> GetByProject(PlanCraftDb db, int projectId)
-        => db.ProjectPhases.Where(x => x.ProjectId == projectId).OrderBy(x => x.Id).ToListAsync();
+    public static async Task<List<ProjectPhase>> GetByProject(PlanCraftDb db, int projectId)
+    {
+        var phases = await db.ProjectPhases.Where(x => x.ProjectId == projectId).OrderBy(x => x.Id).ToListAsync();
+        foreach (var p in phases)
+        {
+            var criteria = await db.PhaseAcceptanceCriteria.Where(c => c.PhaseId == p.Id).ToListAsync();
+            var total = Math.Max(criteria.Count(c => c.IsRequired), 1);
+            var run = await db.PhaseAcceptanceRuns.Where(r => r.PhaseId == p.Id).OrderByDescending(r => r.VerifiedAt).FirstOrDefaultAsync();
+            var results = run is null ? new List<PhaseAcceptanceResult>() :
+                await db.PhaseAcceptanceResults.Where(r => r.RunId == run.Id).ToListAsync();
+            double score = 0;
+            foreach (var c in criteria.Where(c => c.IsRequired))
+            {
+                var r = results.FirstOrDefault(x => x.CriteriaId == c.Id);
+                if (r is null) continue;
+                score += r.Status switch
+                {
+                    AcceptanceStatus.Pass => 1.0,
+                    AcceptanceStatus.AcceptedWithNote => 0.8,
+                    _ => 0.0
+                };
+            }
+            var tasksQ = db.Tasks.Where(t => t.PhaseId == p.Id);
+            var totalTasks = await tasksQ.CountAsync();
+            double tasksScore = 0;
+            if (totalTasks > 0)
+            {
+                var done = await tasksQ.CountAsync(t => t.Status == TaskStatus.Done);
+                tasksScore = (double)done / totalTasks;
+            }
+            p.PercentageComplete = Math.Round(100 * (0.7 * (score / total) + 0.3 * tasksScore), 1);
+        }
+        return phases;
+    }
 
     public static async Task<IResult> Create(PlanCraftDb db, int projectId, ProjectPhase ph)
     {

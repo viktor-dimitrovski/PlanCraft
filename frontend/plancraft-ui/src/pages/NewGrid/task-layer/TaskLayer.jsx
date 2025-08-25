@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { dayStatus } from '../work-calendar'
 
 export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth }) {
   const [laneH, setLaneH] = useState(56)
@@ -42,7 +43,7 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth }) 
       {layout.map(card => (
         <div
           key={card.id}
-          className="ng-card"
+          className={`ng-card${card.warn ? " ng-card--warn" : ""}` }
           style={{ left: card.left, top: card.top, width: card.width, borderLeftColor: card.color || '#2563eb' }}
         >
           <div className="ng-cardTitle">{card.title}</div>

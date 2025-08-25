@@ -16,5 +16,8 @@ public static class ApiRouteMap
         TimeOffRoutes.Map(api);
         ScenariosRoutes.Map(api);
         PlanRoutes.Map(api);
+        PhaseCriteriaRoutes.Map(api);
+        PhaseVerificationRoutes.Map(api);
+        PhaseAssignmentRoutes.Map(api);
     }
 }

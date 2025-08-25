@@ -258,3 +258,39 @@ body { margin: 0; color: var(--ng-ink); background: #fafafa; }
   transform: translateX(-4px);
   z-index: 7;
 }
+
+/* ===== Non-working overlay ===== */
+.ng-nonworkLayer{
+  position: absolute;
+  inset: calc(var(--ng-headerH1) + var(--ng-headerH2)) 0 0 0;
+  z-index: 7;
+  pointer-events: none;
+}
+.ng-nonwork{ position:absolute; background: rgba(241,245,249,0.9); }
+.ng-nonwork--weekend{
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(59,130,246,0.10) 0px,
+    rgba(59,130,246,0.10) 6px,
+    rgba(59,130,246,0.00) 6px,
+    rgba(59,130,246,0.00) 12px
+  );
+}
+.ng-nonwork--holiday{ background: rgba(234,88,12,0.16); }
+.ng-nonwork--leave{
+  background: repeating-linear-gradient(
+    135deg,
+    rgba(16,185,129,0.16) 0px,
+    rgba(16,185,129,0.16) 8px,
+    rgba(16,185,129,0.05) 8px,
+    rgba(16,185,129,0.05) 16px
+  );
+}
+.ng-card--warn{
+  box-shadow: 0 0 0 1px rgba(234,88,12,0.35) inset, 0 1px 2px rgba(0,0,0,0.06);
+}
+.ng-card--warn::after{
+  content: "!";
+  position: absolute; right: 6px; top: 4px;
+  font-weight: 700; font-size: 12px; color: #ea580c;
+}
