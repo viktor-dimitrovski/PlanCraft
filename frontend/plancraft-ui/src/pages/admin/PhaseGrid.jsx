@@ -2,6 +2,7 @@
 import React from 'react'
 
 export default function PhaseGrid({ loading, error, rows, onEdit, onDelete, onOpenCriteria, onStartVerification }) {
+
   if (error) return <div className="ap-error">{error}</div>
   return (
     <div className="ap-table-wrap">
@@ -28,11 +29,13 @@ export default function PhaseGrid({ loading, error, rows, onEdit, onDelete, onOp
               <td><span className="ap-pill">{p.priority ?? 0}</span></td>
               <td>
                 <div className="ap-title-cell">
-                  <div className="ap-title-strong">{p.uiTitle}</div>
-                  {p.description && <div className="ap-meta">{p.description}</div>}
+                  <div className="ap-title-strong" title={p.uiTitle}>{p.uiTitle}</div>
+                  {p.description && (
+                    <div className="ap-meta" title={p.description}>{p.description}</div>
+                  )}
                 </div>
               </td>
-              <td>{p.estimateDays ?? ''}</td>
+              <td>{p.estimatedDays ?? p.EstimatedDays ?? ''}</td>
               <td>{p.uiStart}</td>
               <td><StatusBadge value={p.status} /></td>
               <td><Progress value={p.uiPercent ?? 0} /></td>

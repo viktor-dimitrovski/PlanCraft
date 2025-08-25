@@ -123,6 +123,145 @@ namespace PlanCraft.Api.Migrations
                     b.ToTable("TimeOffs");
                 });
 
+            modelBuilder.Entity("PlanCraft.Api.PhaseAcceptanceCriteria", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsRequired")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PhaseId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhaseId");
+
+                    b.ToTable("PhaseAcceptanceCriteria");
+                });
+
+            modelBuilder.Entity("PlanCraft.Api.PhaseAcceptanceResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CriteriaId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<int>("RunId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("SpentMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CriteriaId");
+
+                    b.HasIndex("RunId");
+
+                    b.ToTable("PhaseAcceptanceResults");
+                });
+
+            modelBuilder.Entity("PlanCraft.Api.PhaseAcceptanceRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("EndAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("OverallStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PhaseId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("StartAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("VerifiedByPersonId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PhaseId");
+
+                    b.HasIndex("VerifiedByPersonId");
+
+                    b.ToTable("PhaseAcceptanceRuns");
+                });
+
+            modelBuilder.Entity("PlanCraft.Api.PhaseAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssignedDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PersonId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PhaseId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PersonId");
+
+                    b.HasIndex("PhaseId");
+
+                    b.ToTable("PhaseAssignments");
+                });
+
             modelBuilder.Entity("PlanCraft.Api.Project", b =>
                 {
                     b.Property<int>("Id")
@@ -184,10 +323,31 @@ namespace PlanCraft.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("DependantPhaseId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("DurationDays")
+                        .HasColumnType("integer");
+
                     b.Property<int>("EstimatedDays")
                         .HasColumnType("integer");
 
+                    b.Property<int>("NoAssignedDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
                     b.Property<int>("ProjectId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
                         .HasColumnType("integer");
 
                     b.Property<string>("Title")
@@ -196,9 +356,26 @@ namespace PlanCraft.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DependantPhaseId");
+
                     b.HasIndex("ProjectId");
 
                     b.ToTable("ProjectPhases");
+                });
+
+            modelBuilder.Entity("PlanCraft.Api.ProjectPhaseParallel", b =>
+                {
+                    b.Property<int>("PhaseId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("WithPhaseId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("PhaseId", "WithPhaseId");
+
+                    b.HasIndex("WithPhaseId");
+
+                    b.ToTable("ProjectPhaseParallels");
                 });
 
             modelBuilder.Entity("PlanCraft.Api.Scenario", b =>
@@ -356,6 +533,73 @@ namespace PlanCraft.Api.Migrations
                     b.ToTable("Tasks");
                 });
 
+            modelBuilder.Entity("PlanCraft.Api.PhaseAcceptanceCriteria", b =>
+                {
+                    b.HasOne("PlanCraft.Api.ProjectPhase", "Phase")
+                        .WithMany("AcceptanceCriteria")
+                        .HasForeignKey("PhaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Phase");
+                });
+
+            modelBuilder.Entity("PlanCraft.Api.PhaseAcceptanceResult", b =>
+                {
+                    b.HasOne("PlanCraft.Api.PhaseAcceptanceCriteria", "Criteria")
+                        .WithMany()
+                        .HasForeignKey("CriteriaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PlanCraft.Api.PhaseAcceptanceRun", "Run")
+                        .WithMany("Results")
+                        .HasForeignKey("RunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Criteria");
+
+                    b.Navigation("Run");
+                });
+
+            modelBuilder.Entity("PlanCraft.Api.PhaseAcceptanceRun", b =>
+                {
+                    b.HasOne("PlanCraft.Api.ProjectPhase", "Phase")
+                        .WithMany("AcceptanceRuns")
+                        .HasForeignKey("PhaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PlanCraft.Api.Person", "VerifiedByPerson")
+                        .WithMany()
+                        .HasForeignKey("VerifiedByPersonId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Phase");
+
+                    b.Navigation("VerifiedByPerson");
+                });
+
+            modelBuilder.Entity("PlanCraft.Api.PhaseAssignment", b =>
+                {
+                    b.HasOne("PlanCraft.Api.Person", "Person")
+                        .WithMany()
+                        .HasForeignKey("PersonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PlanCraft.Api.ProjectPhase", "Phase")
+                        .WithMany("Assignments")
+                        .HasForeignKey("PhaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Person");
+
+                    b.Navigation("Phase");
+                });
+
             modelBuilder.Entity("PlanCraft.Api.Project", b =>
                 {
                     b.HasOne("PlanCraft.Api.Bank", "Bank")
@@ -380,13 +624,39 @@ namespace PlanCraft.Api.Migrations
 
             modelBuilder.Entity("PlanCraft.Api.ProjectPhase", b =>
                 {
+                    b.HasOne("PlanCraft.Api.ProjectPhase", "DependantPhase")
+                        .WithMany()
+                        .HasForeignKey("DependantPhaseId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("PlanCraft.Api.Project", "Project")
                         .WithMany("Phases")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.Navigation("DependantPhase");
+
                     b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("PlanCraft.Api.ProjectPhaseParallel", b =>
+                {
+                    b.HasOne("PlanCraft.Api.ProjectPhase", "Phase")
+                        .WithMany("ParallelWith")
+                        .HasForeignKey("PhaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("PlanCraft.Api.ProjectPhase", "WithPhase")
+                        .WithMany()
+                        .HasForeignKey("WithPhaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Phase");
+
+                    b.Navigation("WithPhase");
                 });
 
             modelBuilder.Entity("PlanCraft.Api.TaskAssignment", b =>
@@ -445,9 +715,25 @@ namespace PlanCraft.Api.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("PlanCraft.Api.PhaseAcceptanceRun", b =>
+                {
+                    b.Navigation("Results");
+                });
+
             modelBuilder.Entity("PlanCraft.Api.Project", b =>
                 {
                     b.Navigation("Phases");
+                });
+
+            modelBuilder.Entity("PlanCraft.Api.ProjectPhase", b =>
+                {
+                    b.Navigation("AcceptanceCriteria");
+
+                    b.Navigation("AcceptanceRuns");
+
+                    b.Navigation("Assignments");
+
+                    b.Navigation("ParallelWith");
                 });
 #pragma warning restore 612, 618
         }

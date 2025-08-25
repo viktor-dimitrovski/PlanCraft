@@ -32,6 +32,8 @@ export const apiGet    = (p, options)        => request(p, { method: 'GET', ...(
 export const apiPost   = (p, body, options)  => request(p, { method: 'POST', body: JSON.stringify(body ?? {}), ...(options||{}) });
 export const apiPut    = (p, body, options)  => request(p, { method: 'PUT',  body: JSON.stringify(body ?? {}), ...(options||{}) });
 export const apiDelete = (p, options)        => request(p, { method: 'DELETE', ...(options||{}) });
+export const apiPatch  = (p, body, options)   => request(p, { method: 'PATCH', body: JSON.stringify(body ?? {}), ...(options || {}) });
+
 
 /* =========================== PLAN =========================== */
 
@@ -76,6 +78,7 @@ export const deletePerson = (id) => apiDelete(`people/${id}`);
 /* =========================== BANKS =========================== */
 
 export const fetchBanks       = ()            => apiGet('banks');
+export const listBanks        = ()            => fetchBanks();
 export const createBank       = (b)           => apiPost('banks', b);
 export const updateBank       = (id, b)       => apiPut(`banks/${id}`, b);
 export const deleteBank       = (id)          => apiDelete(`banks/${id}`);
@@ -87,6 +90,10 @@ export const createProject    = (p)           => apiPost('projects', p);
 export const updateProject    = (id, p)       => apiPut(`projects/${id}`, p);
 export const deleteProject    = (id)          => apiDelete(`projects/${id}`);
 
+/* =========================== PROJECTS =========================== */
+export const getProjects  = () => apiGet('projects');
+export const listProjects = () => getProjects();
+
 /* =========================== PHASES =========================== */
 
 export const getPhases        = (projectId)   => apiGet(`projects/${projectId}/phases`);
@@ -96,6 +103,38 @@ export const deletePhase      = (id)          => apiDelete(`phases/${id}`);
 
 export const planPhase        = (phaseId, payload) => apiPost(`phases/${phaseId}/plan`, payload);
 export const unplanPhase      = (phaseId)     => apiDelete(`phases/${phaseId}/plan`);
+
+/* ===== Back-compat aliases (Phases) ===== */
+/** Keep older naming used across UI without breaking new functions */
+export const listPhases  = (projectId)        => getPhases(projectId);
+export const createPhase = (projectId, phase) => addPhase(projectId, phase);
+/* (updatePhase/deletePhase names already match and are exported above) */
+
+
+/* ===================== PHASE ACCEPTANCE CRITERIA ===================== */
+/** List criteria for a phase */
+export const getPhaseCriteria      = (phaseId)                 => apiGet(`phases/${phaseId}/criteria`);
+/** Create a new criterion */
+export const addPhaseCriterion     = (phaseId, payload)        => apiPost(`phases/${phaseId}/criteria`, payload);
+/** Update existing criterion */
+export const updatePhaseCriterion  = (criterionId, payload)    => apiPut(`criteria/${criterionId}`, payload);
+/** Delete criterion */
+export const deletePhaseCriterion  = (criterionId)             => apiDelete(`criteria/${criterionId}`);
+/** Reorder criteria in a phase */
+export const reorderPhaseCriteria  = (phaseId, orderedIds)     => apiPost(`phases/${phaseId}/criteria/reorder`, { ids: orderedIds });
+/** Set status of a single criterion (1 Pass, 2 Fail, 3 AcceptedWithNote) */
+export const setPhaseCriterionStatus = (phaseId, criterionId, status, note) => apiPatch(`phases/${phaseId}/criteria/${criterionId}/status`, { status, note });
+export const setCriterionStatusById = (criterionId, status, note) => apiPatch(`criteria/${criterionId}/status`, { status, note });
+
+
+
+/* ===== Back-compat aliases (Criteria) ===== */
+export const listCriteria     = (phaseId)              => getPhaseCriteria(phaseId);
+export const createCriterion  = (phaseId, payload)     => addPhaseCriterion(phaseId, payload);
+export const updateCriterion  = (criterionId, payload) => updatePhaseCriterion(criterionId, payload);
+export const deleteCriterion  = (criterionId)          => deletePhaseCriterion(criterionId);
+export const reorderCriteria  = (phaseId, ids)         => reorderPhaseCriteria(phaseId, ids);
+export const setCriterionStatus = (criterionId, status, note) => setCriterionStatusById(criterionId, status, note);
 
 /* =========================== TASKS =========================== */
 

@@ -66,6 +66,17 @@ export default function SideNav({ active, open, onClose }) {
               </a>
             );
           })}
+
+          {/* --- Minimal addition: direct submenu links to Admin sections --- */}
+          <div style={{ marginLeft: 28, marginTop: 6 }}>
+            <a href="#/admin?tab=banks"       className="sidenav__item" onClick={onClose}>• Banks</a>
+            <a href="#/admin?tab=projects"    className="sidenav__item" onClick={onClose}>• Projects</a>
+            <a href="#/admin?tab=phases"      className="sidenav__item" onClick={onClose}>• Phases</a>
+            <a href="#/admin?tab=adminPhases" className="sidenav__item" onClick={onClose}>• Phases (Advanced)</a>
+            <a href="#/admin?tab=tasks"       className="sidenav__item" onClick={onClose}>• Tasks</a>
+            <a href="#/admin?tab=users"       className="sidenav__item" onClick={onClose}>• Users</a>
+          </div>
+          {/* --- end minimal addition --- */}
         </div>
       </nav>
 

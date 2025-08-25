@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import useAsync from '../hooks/useAsync'
 import { fetchProjects, createProject, updateProject, deleteProject } from '../../../lib/api'
 
-export default function ProjectsSection({ banks, onChange }) {
+export default function ProjectsSection({ banks = [], onChange }) {
   const [rows, setRows] = useState([])
   const [form, setForm] = useState({ name: '', bankId: '' })
   const [editId, setEditId] = useState(null)
@@ -63,7 +63,11 @@ export default function ProjectsSection({ banks, onChange }) {
             {rows.map(r => (
               <tr key={r.id}>
                 <td>{r.id}</td>
-                <td>{editId===r.id ? <input value={edit.name} onChange={e=>setEdit({...edit, name:e.target.value})} /> : r.name}</td>
+                <td>
+                  {editId===r.id
+                    ? <input value={edit.name} onChange={e=>setEdit({...edit, name:e.target.value})} />
+                    : r.name}
+                </td>
                 <td>
                   {editId===r.id
                     ? (
@@ -76,8 +80,18 @@ export default function ProjectsSection({ banks, onChange }) {
                 </td>
                 <td className="rowActions">
                   {editId===r.id
-                    ? (<><button className="btn btn--primary" onClick={()=>save(r.id)}>Save</button><button className="btn" onClick={()=>{setEditId(null); setEdit({})}}>Cancel</button></>)
-                    : (<><button className="btn" onClick={()=>setEditId(r.id) || setEdit({ name:r.name, bankId:r.bankId })}>Edit</button><button className="btn btn--danger" onClick={()=>remove(r.id)}>Delete</button></>)
+                    ? (
+                      <>
+                        <button className="btn btn--primary" onClick={()=>save(r.id)}>Save</button>
+                        <button className="btn" onClick={()=>{setEditId(null); setEdit({})}}>Cancel</button>
+                      </>
+                    )
+                    : (
+                      <>
+                        <button className="btn" onClick={()=>setEditId(r.id) || setEdit({ name:r.name, bankId:r.bankId })}>Edit</button>
+                        <button className="btn btn--danger" onClick={()=>remove(r.id)}>Delete</button>
+                      </>
+                    )
                   }
                 </td>
               </tr>

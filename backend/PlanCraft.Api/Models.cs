@@ -264,7 +264,7 @@ public record ProjectPhase
     public int ProjectId { get; set; }
     public Project? Project { get; set; }
     public string Title { get; set; } = "";
-    public int EstimatedDays { get; set; } = 5;
+    public int EstimatedDays { get; set; }
 
     // Planning
     public DateTime? StartDate { get; set; }
