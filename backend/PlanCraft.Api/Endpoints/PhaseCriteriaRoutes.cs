@@ -9,7 +9,7 @@ public static class PhaseCriteriaRoutes
         api.MapGet("/phases/{phaseId:int}/criteria", PhaseCriteriaHandlers.List);
         api.MapPost("/phases/{phaseId:int}/criteria", PhaseCriteriaHandlers.Create);
         api.MapPut("/phases/{phaseId:int}/criteria/{id:int}", PhaseCriteriaHandlers.Update);
-        api.MapPut("/phases/criteria/{id:int}", PhaseCriteriaHandlers.UpdateByCriteriaId);
+        api.MapPut("/criteria/{id:int}", PhaseCriteriaHandlers.UpdateByCriteriaId);
         api.MapDelete("/phases/{phaseId:int}/criteria/{id:int}", PhaseCriteriaHandlers.Delete);
         api.MapDelete("/criteria/{id:int}", PhaseCriteriaHandlers.DeleteByCriteriaId);
         
