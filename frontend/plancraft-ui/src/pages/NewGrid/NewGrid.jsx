@@ -6,6 +6,7 @@ import './newgrid.css'
 import TaskLayer from './task-layer/TaskLayer'
 import TodayMarker from './task-layer/TodayMarker'
 import NonWorkLayer from './task-layer/NonWorkLayer'
+import usePlannerData from '../hooks/usePlannerData'
 
 // Generate demo people list (placeholder). In later steps we'll wire true data.
 
@@ -40,6 +41,11 @@ export default function NewGrid(){
 
   // Column width heuristics (denser for daily)
   const colW = zoom === 'day' ? 36 : zoom === 'week' ? 96 : 128
+  // --- Real data wiring (optional): try to load from usePlannerData; fall back to demo ---
+  const { people: realPeople = [], tasks: realTasks = [], refreshGrid: refreshReal } = usePlannerData({ range: { from, to } });
+  const people = realPeople && realPeople.length ? realPeople : demoPeople;
+  const tasksEff = realTasks && realTasks.length ? realTasks : tasks;
+
 
   const [tasks, setTasks] = useState(() => demoTasks(from))
   useEffect(()=>{ setTasks(demoTasks(from)) }, [from])
@@ -134,7 +140,8 @@ export default function NewGrid(){
               {/* Task layer placeholder */}
               <div className="ng-taskLayer">
                 {cols.length > 0 && <TodayMarker gridStart={cols[0].start} zoom={zoom} colW={colW} />}
-              <TaskLayer cols={cols} people={demoPeople} zoom={zoom} tasks={tasks} colWidth={colW} />
+              <TaskLayer cols={cols} people={people} zoom={zoom} tasks={tasksEff} colWidth={colW}
+                onTaskUpdate={(t)=> setTasks(prev=> prev.map(x=> String(x.id)===String(t.id) ? { ...x, personId: t.personId, start: t.start } : x))} />
               </div>
             </div>
           </div>
