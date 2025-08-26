@@ -99,23 +99,6 @@ export default function ProjectsSection({ banks = [], onChange }) {
     setDupBankId('')
     setDupProjectId('')
   }
-  // drafts used only by the toolbar form
-  const [bankFilterDraft, setBankFilterDraft] = useState(bankFilterId);
-  const [searchDraft, setSearchDraft] = useState(search);
-
-  const applyFilters = (e) => {
-    e.preventDefault();
-    setBankFilterId(bankFilterDraft ?? '');
-    setSearch(searchDraft ?? '');
-  };
-
-  const resetFilters = () => {
-    setBankFilterDraft('');
-    setSearchDraft('');
-    setBankFilterId('');
-    setSearch('');
-  };
-
   useEffect(() => { setDupProjectId('') }, [dupBankId])
 
   const doDuplicate = async () => {
@@ -137,6 +120,34 @@ export default function ProjectsSection({ banks = [], onChange }) {
       setTimeout(() => setFlash(null), 4000)
     }
   }
+
+  // Quick add a project into the currently filtered bank
+  const quickAddProject = async () => {
+    if (!bankFilterId) { alert('Select a bank first'); return }
+    const name = window.prompt('New project name');
+    if (!name || !name.trim()) return;
+
+    await createProject({ name: name.trim(), bankId: parseInt(bankFilterId, 10) });
+    await load(); onChange?.();
+  };
+
+  // inline add (name input next to bank filter)
+  const [newProjectName, setNewProjectName] = useState('');
+
+  const handleAddProject = async (e) => {
+    e?.preventDefault();
+    if (!bankFilterId) { alert('Select a bank first'); return; }
+    if (!newProjectName.trim()) { return; }
+
+    await createProject({
+      name: newProjectName.trim(),
+      bankId: parseInt(bankFilterId, 10),
+    });
+
+    setNewProjectName('');
+    await load(); onChange?.();
+  };
+
 
   return (
     <section className="adminCard">
@@ -164,34 +175,40 @@ export default function ProjectsSection({ banks = [], onChange }) {
         </div>
       )}
 
-      {/* Toolbar (submit to apply filters) */}
-      <form
-        className="formRow"
-        onSubmit={applyFilters}
-        style={{ gap: 8, alignItems:'center', flexWrap:'wrap' }}
-      >
-        <label style={{ fontSize: 13, color:'#475569' }}>Filter by bank</label>
+      {/* Toolbar: live filter by bank + inline add */}
+      <div className="formRow" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <label style={{ fontSize: 13, color: '#475569' }}>Filter by bank</label>
 
         <ComboBox
-          items={[{ value:'', label:'All banks…' }, ...bankOpts.map(b => ({ value: String(b.id), label: b.name }))]}
-          value={bankFilterDraft}
-          onChange={(v) => setBankFilterDraft(v ?? '')}
+          items={[{ value: '', label: 'All banks…' }, ...bankOpts.map(b => ({ value: String(b.id), label: b.name }))]}
+          value={bankFilterId}
+          onChange={(v) => setBankFilterId(v ?? '')} // live filtering
           placeholder="All banks…"
           width={240}
         />
 
-        <input
-          placeholder="Search by project name…"
-          value={searchDraft}
-          onChange={(e)=>setSearchDraft(e.target.value)}
-          style={{ minWidth: 220 }}
-        />
+        {/* Inline add form so Enter submits */}
+        <form onSubmit={handleAddProject} style={{ display: 'flex', gap: 8 }}>
+          <input
+            placeholder={bankFilterId ? 'New project name…' : 'Select a bank first…'}
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            style={{ minWidth: 260 }}
+            disabled={!bankFilterId}
+          />
+          <button
+            className="btn btn--primary"
+            type="submit"
+            disabled={!bankFilterId || !newProjectName.trim()}
+            title={bankFilterId ? 'Add project to this bank' : 'Select a bank first'}
+          >
+            Add project
+          </button>
+        </form>
 
-        <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>
-          <button className="btn" type="button" onClick={resetFilters}>Reset</button>
-          <button className="btn btn--primary" type="submit">Apply</button>
-        </div>
-      </form>
+        <div style={{ marginLeft: 'auto' }} />
+      </div>
+
 
 
       <div className="tableWrap">

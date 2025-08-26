@@ -144,3 +144,7 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
 .ng-splitPrompt input[type="number"]{ width:72px; padding:4px 6px; }
 .ng-splitPrompt button{ padding:6px 10px; border-radius:8px; border:1px solid rgba(2,6,23,.12); background:#f8fafc; cursor:pointer; }
 .ng-splitPrompt button.primary{ background:#2563eb; color:#fff; border-color:#2563eb; }
+
+
+/* NewGrid override: force white canvas */
+.ng-scroll, .ng-body, .ng-shell { background: #fff; }
