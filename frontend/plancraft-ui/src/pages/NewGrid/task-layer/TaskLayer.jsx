@@ -23,11 +23,11 @@ function computeLayout({ cols, people, zoom, tasks, colW, laneH }){
     const start = toStartOfDay(t.start)
     const diffDays = Math.floor((start - toStartOfDay(gridStart)) / DAY)
     const col = diffDays / dpc
-    const snappedSpan = Math.max(1, Math.round((t.durationDays || 1) / dpc))
-
+    const workPerCol = (zoom === 'day') ? 1 : (zoom === 'week' ? 5 : 10)
+    const span = (Number(t.durationDays || 1) / workPerCol)
     const top = (idx ?? 0) * laneH + (laneH / 2)
     const left = Math.max(0, Math.round(col * colW))
-    const width = Math.max(1, Math.round(snappedSpan * colW))
+    const width = Math.max(1, Math.round(span * colW))
 
     let warn = false
     try { const st = dayStatus(String(t.personId), start); warn = Boolean(st?.nonWork) } catch {}
@@ -149,7 +149,7 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
       const colIndex = Math.max(0, Math.round(nextLeft / colW))
       const startDate = addDays(toStartOfDay(gridStart), colIndex * dpc)
 
-      const approxIdx = Math.round((nextTop - (laneH / 2)) / laneH)
+      const approxIdx = Math.floor((nextTop - (laneH / 2)) / laneH)
       const clampedIdx = clamp(approxIdx, 0, Math.max(people.length - 1, 0))
       const nextPerson = people?.[clampedIdx]
       const nextPersonId = nextPerson ? String(nextPerson.id) : card.personId

@@ -44,6 +44,10 @@ export default function NewGrid(){
 
   const [phaseIndex, setPhaseIndex] = useState({})
 
+  const [dropPreview, setDropPreview] = useState(null)
+  const [splitPrompt, setSplitPrompt] = useState(null)
+  const [splitDays, setSplitDays] = useState(0)
+
   const [tasks, setTasks] = useState([])
   const [assignmentsCache, setAssignmentsCache] = useState(()=> new Map())
   const inFlight = useRef(new Set())
@@ -174,48 +178,106 @@ export default function NewGrid(){
     }
   }
 
-  const onDragStart = (e) => setActiveDragId(String(e?.active?.id || ''))
-  async function onDragEnd(evt){
+  function computeDropPreview(activeId){
+  const surface = document.querySelector('.ng-taskLayer')
+  if(!surface || !cols.length || !people.length) return null
+
+  const rect = surface.getBoundingClientRect()
+  const px = pointerRef.current.x - rect.left
+  const py = pointerRef.current.y - rect.top
+  if (px < 0 || py < 0) return null
+
+  const dpc = (zoom === 'day') ? 1 : (zoom === 'week' ? 7 : 14)
+  const colIndex = Math.max(0, Math.round(px / colW))
+  const laneIdx = Math.min(Math.max(Math.floor(py / laneH), 0), Math.max(people.length - 1, 0))
+
+  let durationDays = 5
+  if (activeId && typeof activeId === 'string'){
+    if (activeId.startsWith('phase:')){
+      const phaseId = Number(activeId.split(':')[1])
+      const phase = phaseIndex[String(phaseId)] || {}
+      durationDays = Number(phase.estimatedDays || phase.durationDays || phase.days || 5)
+    } else if (activeId.startsWith('card:')){
+      const t = tasks.find(x => `card:${x.id}` === activeId || String(x.id) === activeId.replace('card:',''))
+      if (t) durationDays = Number(t.durationDays || 1)
+    }
+  }
+
+  const workPerCol = (zoom === 'day') ? 1 : (zoom === 'week' ? 5 : 10)
+  const widthPx = (durationDays / workPerCol) * colW
+  return {
+    left: colIndex * colW,
+    top: laneIdx * laneH + 6,
+    width: widthPx,
+    height: laneH - 12,
+    laneIdx,
+    colIndex,
+  }
+}
+
+const onDragStart = (e) => { const id = String(e?.active?.id || ''); setActiveDragId(id); setDropPreview(computeDropPreview(id)); }
+  
+
+// helper used by split prompt
+async function onCreatePhaseAssignment({ phaseId, personId, startDate, assignedDays }){
+  try{
+    const payload = {
+      personId: Number(personId),
+      assignedDays: Number(assignedDays),
+      startDate: (startDate instanceof Date ? startDate.toISOString() : startDate),
+    }
+    const created = await createPhaseAssignment(Number(phaseId), payload)
+    if(created && created.id != null){
+      setAssignmentsCache(prev => { const next = new Map(prev); const list = next.get(Number(phaseId)) || []; next.set(Number(phaseId), [...list, { id: created.id, phaseId: Number(phaseId), personId: payload.personId, assignedDays: payload.assignedDays, startDate: payload.startDate }]); return next })
+      const phase = phaseIndex[String(phaseId)] || {}
+      const title = phase.title || phase.name || `Phase ${phaseId}`
+      const color = phase.color || '#2563eb'
+      setTasks(prev => [...prev, { id: String(created.id), assignmentId: created.id, phaseId: Number(phaseId), personId: Number(personId), start: (startDate instanceof Date ? startDate : new Date(startDate)), durationDays: Number(assignedDays), title, color }])
+    }
+  }catch(err){
+    console.error('create assignment error', err)
+  }
+}
+async function onDragEnd(evt){
     const id = String(evt?.active?.id || '')
     if(id.startsWith('phase:')){
-      const phaseId = Number(id.split(':')[1])
-      const surface = document.querySelector('.ng-taskLayer')
-      if(!surface || !cols.length || !people.length) return
-      const rect = surface.getBoundingClientRect()
-      const px = pointerRef.current.x - rect.left
-      const py = pointerRef.current.y - rect.top
-      if(px < 0 || py < 0) return
+  const phaseId = Number(id.split(':')[1])
+  const surface = document.querySelector('.ng-taskLayer')
+  if(!surface || !cols.length || !people.length) { setActiveDragId(null); setDropPreview(null); return }
+  const rect = surface.getBoundingClientRect()
+  const px = pointerRef.current.x - rect.left
+  const py = pointerRef.current.y - rect.top
+  if(px < 0 || py < 0) { setActiveDragId(null); setDropPreview(null); return }
 
-      const colIndex = Math.max(0, Math.round(px / colW))
-      const dpc = daysPerColumn(zoom)
-      const startDate = new Date(cols[0].start); startDate.setHours(0,0,0,0); startDate.setDate(startDate.getDate() + colIndex * dpc)
+  const colIndex = Math.max(0, Math.round(px / colW))
+  const dpc = daysPerColumn(zoom)
+  const startDate = new Date(cols[0].start); startDate.setHours(0,0,0,0); startDate.setDate(startDate.getDate() + colIndex * dpc)
 
-      const laneIdx = Math.min(Math.max(Math.round(py / laneH), 0), Math.max(people.length - 1, 0))
-      const person = people[laneIdx]; if(!person) return
+  const laneIdx = Math.min(Math.max(Math.floor(py / laneH), 0), Math.max(people.length - 1, 0))
+  const person = people[laneIdx]; if(!person) { setActiveDragId(null); setDropPreview(null); return }
 
-      const phase = phaseIndex[String(phaseId)] || {}
-      const assignedDays = Number(phase.estimatedDays || phase.durationDays || phase.days || 5)
+  const phase = phaseIndex[String(phaseId)] || {}
+  const maxDays = Number(phase.estimatedDays || phase.durationDays || phase.days || 1)
 
-      try{
-        const payload = { personId: Number(person.id), assignedDays, startDate: startDate.toISOString() }
-        const created = await createPhaseAssignment(phaseId, payload)
-        if(created && created.id != null){
-          setAssignmentsCache(prev => { const next = new Map(prev); const list = next.get(phaseId) || []; next.set(phaseId, [...list, { id: created.id, phaseId, personId: payload.personId, assignedDays: payload.assignedDays, startDate: payload.startDate }]); return next })
-          const title = phase.title || phase.name || `Phase ${phaseId}`
-          const color = phase.color || '#2563eb'
-          setTasks(prev => [...prev, { id: String(created.id), assignmentId: created.id, phaseId, personId: person.id, start: startDate, durationDays: assignedDays, title, color }])
-        }
-      }catch(err){
-        console.error('create assignment error', err)
-      }
-      setActiveDragId(null)
-      return
-    }
+  setSplitDays(maxDays)
+  setSplitPrompt({
+    x: pointerRef.current.x + 12,
+    y: pointerRef.current.y + 12,
+    personId: person.id,
+    startDate,
+    phaseId,
+    maxDays,
+    title: phase.title || phase.name || `Phase ${phaseId}`
+  })
+  setActiveDragId(null)
+  setDropPreview(null)
+  return
+}
     setActiveDragId(null)
   }
 
   return (
-    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+    <DndContext sensors={sensors} onDragStart={onDragStart} onDragMove={(e)=>setDropPreview(computeDropPreview(String(e?.active?.id||'')))} onDragCancel={()=>setDropPreview(null)} onDragEnd={onDragEnd}>
       <div className="ng-shell">
         <div className="ng-toolbar">
           <button className="ng-btn" onClick={()=>{ setAssignmentsCache(new Map()); setTasks([]); }}>Clear cache</button>
@@ -289,7 +351,19 @@ export default function NewGrid(){
         </div>
       </div>
 
-      <DragOverlay>{renderGhost()}</DragOverlay>
+      {splitPrompt && (
+  <div className="ng-splitPrompt" style={{ position:'fixed', left: splitPrompt.x, top: splitPrompt.y, zIndex: 60, background:'#fff', border:'1px solid rgba(2,6,23,.1)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.18)', padding:'10px 12px', minWidth:220 }}>
+    <div style={{fontWeight:600, marginBottom:6}}>Assign “{splitPrompt.title}”</div>
+    <div className="ng-splitPrompt__row">
+      <label>Days:</label>
+      <input type="number" min={1} max={splitPrompt.maxDays} value={splitDays} onChange={e=>setSplitDays(Math.max(1, Math.min(Number(splitPrompt.maxDays), Number(e.target.value||1))))} />
+      <button className="primary" onClick={async()=>{ try{ await onCreatePhaseAssignment({ phaseId: splitPrompt.phaseId, personId: splitPrompt.personId, startDate: splitPrompt.startDate, assignedDays: splitDays }) } finally { setSplitPrompt(null) } }}>OK</button>
+      <button onClick={async()=>{ try{ await onCreatePhaseAssignment({ phaseId: splitPrompt.phaseId, personId: splitPrompt.personId, startDate: splitPrompt.startDate, assignedDays: splitPrompt.maxDays }) } finally { setSplitPrompt(null) } }}>All {splitPrompt.maxDays}d</button>
+      <button onClick={()=>setSplitPrompt(null)}>Cancel</button>
+    </div>
+  </div>
+)}
+<DragOverlay>{renderGhost()}</DragOverlay>
     </DndContext>
   )
 }

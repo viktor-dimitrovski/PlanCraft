@@ -1,0 +1,36 @@
+CREATE OR REPLACE PROCEDURE duplicate_project_phases(
+    p_source_project_id INTEGER,
+    p_target_project_id INTEGER
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    INSERT INTO phases (
+        projectid,
+        title,
+        estimateddays,
+        noassigneddays,
+        startdate,
+        durationdays,
+        status,
+        description,
+        priority,
+        dependantphaseid,
+        cangoinparalelwith
+    )
+    SELECT
+        p_target_project_id AS projectid,
+        title,
+        estimateddays,
+        estimateddays AS noassigneddays,   -- resetirano kako što baraš
+        NULL AS startdate,                 -- resetirano na NULL
+        durationdays,
+        0 AS status,                       -- resetirano na 0
+        description,
+        priority,
+        dependantphaseid,
+        cangoinparalelwith
+    FROM phases
+    WHERE projectid = p_source_project_id;
+END;
+$$;

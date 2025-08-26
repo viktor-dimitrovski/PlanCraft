@@ -10,5 +10,7 @@ public static class ProjectsRoutes
         api.MapPost("/projects", ProjectsHandlers.Create);
         api.MapPut("/projects/{id:int}", ProjectsHandlers.Update);
         api.MapDelete("/projects/{id:int}", ProjectsHandlers.Delete);
+        api.MapPost("/projects/{sourceProjectId:int}/duplicate/{targetProjectId:int}", ProjectsHandlers.DuplicatePhases);
     }
+
 }

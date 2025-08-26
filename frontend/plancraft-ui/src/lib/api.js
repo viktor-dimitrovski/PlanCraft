@@ -177,8 +177,7 @@ export const createHoliday    = (h)           => apiPost('holidays', h);
 /* =========================== SCENARIOS =========================== */
 
 export const getScenarios     = ()            => apiGet('scenarios');
-export const createScenario   = (nameOrObj)   =>
-  typeof nameOrObj === 'string' ? apiPost('scenarios', { name: nameOrObj }) : apiPost('scenarios', nameOrObj);
+export const createScenario   = (nameOrObj)   => typeof nameOrObj === 'string' ? apiPost('scenarios', { name: nameOrObj }) : apiPost('scenarios', nameOrObj);
 export const addScenarioOverride   = (scenarioId, override) => apiPost(`scenarios/${scenarioId}/override`, override);
 export const getScenarioOverrides  = (scenarioId)           => apiGet(`scenarios/${scenarioId}/overrides`);
 
@@ -189,3 +188,17 @@ export const ping = () => apiGet('plan/forecast?projectId=0&trials=1').catch(() 
 
 /** For advanced usage/testing */
 export const _raw = { request, apiGet, apiPost, apiPut, apiDelete };
+
+/* =========================== PROJECT DUPLICATION =========================== */
+
+/**
+ * Duplicate all phases from one project into another.
+ * Calls POST /projects/{sourceProjectId}/duplicate/{targetProjectId}
+ */
+export const duplicateProjectPhases = (sourceProjectId, targetProjectId) => apiPost(`projects/${sourceProjectId}/duplicate/${targetProjectId}`);
+
+// moze i vaka i taka
+// export const duplicateProjectPhases = (sourceProjectId, targetProjectId) => {
+//   return apiPost(`projects/${sourceProjectId}/duplicate/${targetProjectId}`);
+// };
+

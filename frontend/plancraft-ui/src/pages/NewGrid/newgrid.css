@@ -1,5 +1,6 @@
 :root{
   --ng-lanesW: 320px;
+  --ng-headerH0: 35px;
   --ng-headerH1: 32px;
   --ng-headerH2: 28px;
   --ng-laneH: 56px;
@@ -31,7 +32,7 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
 
 /* left */
 .ng-bodyLeft{ border-right:1px solid var(--ng-stroke); background:#fff; }
-.ng-headerH1{ height:var(--ng-headerH1); border-bottom:1px solid var(--ng-stroke); }
+.ng-headerH1{ height:var(--ng-headerH0); border-bottom:1px solid var(--ng-stroke); }
 .ng-headerH2{ height:var(--ng-headerH2); border-bottom:1px solid var(--ng-stroke); }
 .people .ng-person{ height:var(--ng-laneH); display:flex; align-items:center; padding:0 12px; border-bottom:1px solid rgba(2,6,23,.06); }
 .ng-lane--over{ background: rgba(37,99,235,.08); }
@@ -122,3 +123,24 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
 .ng-tooltip__title{ font-weight:600; margin-bottom:4px; }
 .ng-tooltip__meta{ font-size:12px; opacity:.85; }
 .ng-tooltip__keys{ font-size:12px; opacity:.7; font-style:italic; margin-top:4px; }
+.ng-dropPreview{
+  position:absolute;
+  background: rgba(37,99,235,.12);
+  border: 2px dashed rgba(37,99,235,.45);
+  border-radius: 10px;
+  pointer-events: none;
+}
+.ng-splitPrompt{
+  position: fixed;
+  z-index: 60;
+  background:#fff;
+  border:1px solid rgba(2,6,23,.1);
+  border-radius:10px;
+  box-shadow:0 12px 32px rgba(0,0,0,.18);
+  padding:10px 12px;
+  min-width:220px;
+}
+.ng-splitPrompt__row{ display:flex; align-items:center; gap:8px; margin-top:6px; }
+.ng-splitPrompt input[type="number"]{ width:72px; padding:4px 6px; }
+.ng-splitPrompt button{ padding:6px 10px; border-radius:8px; border:1px solid rgba(2,6,23,.12); background:#f8fafc; cursor:pointer; }
+.ng-splitPrompt button.primary{ background:#2563eb; color:#fff; border-color:#2563eb; }
