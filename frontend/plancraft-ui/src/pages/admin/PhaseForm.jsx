@@ -1,13 +1,19 @@
-// src/components/admin/PhaseForm.jsx
 import React, { useState } from 'react'
 
-export default function PhaseForm({ phase, phases, onCancel, onSubmit, contextBank, contextProject }) {
+export default function PhaseForm({
+  phase,
+  phases,
+  onCancel,
+  onSubmit,
+  contextBank,
+  contextProject,
+}) {
   const [m, setM] = useState({
     id: phase.id,
     priority: phase.priority ?? 0,
     title: phase.title || '',
     description: phase.description || '',
-    EstimatedDays: phase.EstimatedDays ?? 0, // keep your existing naming
+    EstimatedDays: phase.EstimatedDays ?? phase.estimatedDays ?? 0, // поддржи и двете имиња
     startDate: phase.startDate ? toInput(phase.startDate) : '',
     status: phase.status ?? 0,
     dependantPhaseId: phase.dependantPhaseId ?? '',
@@ -16,7 +22,11 @@ export default function PhaseForm({ phase, phases, onCancel, onSubmit, contextBa
 
   function toInput(d) {
     const x = new Date(d)
-    return isNaN(x) ? '' : `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`
+    return isNaN(x)
+      ? ''
+      : `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(
+          x.getDate()
+        ).padStart(2, '0')}`
   }
   function fromInput(v) {
     if (!v) return null
@@ -30,8 +40,8 @@ export default function PhaseForm({ phase, phases, onCancel, onSubmit, contextBa
       const payload = {
         id: m.id,
         priority: Number(m.priority) || 0,
-        title: m.title?.trim(),
-        description: m.description?.trim(),
+        title: (m.title || '').trim(),
+        description: (m.description || '').trim(),
         EstimatedDays: Number(m.EstimatedDays) || 0,
         startDate: fromInput(m.startDate),
         status: Number(m.status) || 0,
@@ -44,89 +54,134 @@ export default function PhaseForm({ phase, phases, onCancel, onSubmit, contextBa
   }
 
   const priorPhases = phases
-    .filter(p => !m.id || p.id !== m.id)
-    .sort((a,b) => (a.priority??0)-(b.priority??0))
+    .filter((p) => !m.id || p.id !== m.id)
+    .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+
+  const uiPreview = `${contextBank ? `${contextBank}:` : 'bank:'}${m.title || '<title>'}`
 
   return (
     <div className="ap-modal">
-      <div className="ap-modal__card">
-        <div className="ap-modal__head">
-          <div className="ap-modal__title">{m.id ? 'Edit Phase' : 'Add Phase'}</div>
-          <button className="ap-icon-btn" onClick={onCancel} aria-label="Close">✕</button>
-        </div>
-
-        {/* NEW: show filter context so user knows where this phase will be created */}
-        {(contextBank || contextProject) && (
-          <div className="ap-meta" style={{ margin: '0 20px 8px' }}>
-            {contextBank && <>Bank: <b>{contextBank}</b>&nbsp;&nbsp;</>}
-            {contextProject && <>Project: <b>{contextProject}</b></>}
+      <div className="ap-modal__card ap-modal__card--xl">
+        {/* Accent header */}
+        <header className="ap-modal__head ap-modal__head--accent">
+          <div className="ap-headstack">
+            <span className="ap-eyebrow">{m.id ? 'Edit Phase' : 'Add Phase'}</span>
+            <h2 className="ap-modal__title">Phase details</h2>
+            {(contextBank || contextProject) && (
+              <div className="ap-contextChips">
+                {contextBank && (
+                  <span className="ap-chip ap-chip--on-accent">Bank: <b>{contextBank}</b></span>
+                )}
+                {contextProject && (
+                  <span className="ap-chip ap-chip--on-accent">Project: <b>{contextProject}</b></span>
+                )}
+              </div>
+            )}
           </div>
-        )}
+          <button className="ap-icon-btn ap-modal__close" onClick={onCancel} aria-label="Close">✕</button>
+        </header>
 
-        <form onSubmit={submit} className="ap-form">
-          <div className="ap-two">
-            <label>
-              Priority
-              <input type="number" value={m.priority}
-                onChange={e=>setM({...m, priority: e.target.value})}/>
-            </label>
-            <label>
-              Status
-              <select value={m.status}
-                onChange={e=>setM({...m, status: Number(e.target.value)})}>
-                <option value={0}>Planned</option>
-                <option value={1}>In Progress</option>
-                <option value={2}>Blocked</option>
-                <option value={3}>Done</option>
-                <option value={9}>Canceled</option>
-              </select>
-            </label>
+        {/* Form */}
+        <form onSubmit={submit} className="ap-form ap-formGrid ap-formGrid--2">
+          {/* BASICS */}
+          <div className="ap-section full">
+            <div className="ap-section__title">Basics</div>
           </div>
 
-          <label>
-            Title <span className="ap-hint">(UI will show as <b>bank:&lt;title&gt;</b>)</span>
+          <div className="ap-field">
+            <label>Priority</label>
+            <input
+              type="number"
+              value={m.priority}
+              onChange={(e) => setM({ ...m, priority: e.target.value })}
+            />
+          </div>
+
+          <div className="ap-field">
+            <label>Status</label>
+            <select
+              value={m.status}
+              onChange={(e) => setM({ ...m, status: Number(e.target.value) })}
+            >
+              <option value={0}>Planned</option>
+              <option value={1}>In Progress</option>
+              <option value={2}>Blocked</option>
+              <option value={3}>Done</option>
+              <option value={9}>Canceled</option>
+            </select>
+          </div>
+
+          <div className="ap-field full">
+            <label>Title</label>
             <input
               value={m.title}
-              onChange={e => setM({ ...m, title: e.target.value })}
+              onChange={(e) => setM({ ...m, title: e.target.value })}
               placeholder="Short name"
             />
-          </label>
-
-          <label>
-            Description
-            <textarea rows={3} value={m.description}
-              onChange={e=>setM({...m, description:e.target.value})}/>
-          </label>
-
-          <div className="ap-two">
-            <label>
-              Estimate (days)
-              <input type="number" value={m.EstimatedDays}
-                onChange={e=>setM({...m, EstimatedDays:e.target.value})}/>
-            </label>
-            <label>
-              Start date
-              <input type="date" value={m.startDate}
-                onChange={e=>setM({...m, startDate:e.target.value})}/>
-            </label>
+            <div className="ap-help">
+              UI preview: <code className="ap-code">{uiPreview}</code>
+            </div>
           </div>
 
-          <label>
-            Dependant phase
-            <select value={m.dependantPhaseId ?? ''}
-              onChange={e=>setM({...m, dependantPhaseId: e.target.value})}>
+          <div className="ap-field full">
+            <label>Description</label>
+            <textarea
+              rows={4}
+              value={m.description}
+              onChange={(e) => setM({ ...m, description: e.target.value })}
+              placeholder="Optional short description…"
+            />
+          </div>
+
+          {/* SCHEDULING */}
+          <div className="ap-section full">
+            <div className="ap-section__title">Scheduling</div>
+          </div>
+
+          <div className="ap-field">
+            <label>Estimate (days)</label>
+            <input
+              type="number"
+              value={m.EstimatedDays}
+              onChange={(e) => setM({ ...m, EstimatedDays: e.target.value })}
+            />
+          </div>
+
+          <div className="ap-field">
+            <label>Start date</label>
+            <input
+              type="date"
+              value={m.startDate}
+              onChange={(e) => setM({ ...m, startDate: e.target.value })}
+            />
+          </div>
+
+          {/* DEPENDENCIES */}
+          <div className="ap-section full">
+            <div className="ap-section__title">Dependencies</div>
+          </div>
+
+          <div className="ap-field full">
+            <label>Dependant phase</label>
+            <select
+              value={m.dependantPhaseId ?? ''}
+              onChange={(e) => setM({ ...m, dependantPhaseId: e.target.value })}
+            >
               <option value="">None</option>
-              {priorPhases.map(p =>
+              {priorPhases.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.uiTitle || p.title}
                 </option>
-              )}
+              ))}
             </select>
-          </label>
+          </div>
 
-          <div className="ap-modal__foot">
-            <button type="button" className="ap-btn ghost" onClick={onCancel}>Cancel</button>
-            <button type="submit" className="ap-btn" disabled={saving}>
+          {/* Footer */}
+          <div className="ap-modal__foot ap-modal__foot--sticky full">
+            <button type="button" className="ap-btn ghost" onClick={onCancel}>
+              Cancel
+            </button>
+            <button type="submit" className="ap-btn primary" disabled={saving}>
               {saving ? 'Saving…' : 'Save'}
             </button>
           </div>

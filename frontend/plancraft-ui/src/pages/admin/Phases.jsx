@@ -238,11 +238,11 @@ export default function AdminPhases() {
 
     // refresh side panels if they’re showing this phase
     if (drawerPhase?.id === phaseId) {
-      const list = await API.listCriteria(phaseId);
+      const list = await listCriteria(phaseId);
       setCriteria(Array.isArray(list) ? list : []);
     }
     if (verifyPhase?.id === phaseId) {
-      const list = await API.listCriteria(phaseId);
+      const list = await listCriteria(phaseId);
       setVerifyCriteria(Array.isArray(list) ? list : []);
     }
 

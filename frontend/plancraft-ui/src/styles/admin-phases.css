@@ -183,12 +183,24 @@
 
 
 
-
-
-
 /* ================================================= */
 /* ===== Verification UI (modern) ===== */
 /* ================================================= */
+
+/* tiny spinner used inside buttons */
+.ap-spinner{
+  width:16px; height:16px; border-radius:999px;
+  border:2px solid #cbd5e1; border-top-color: currentColor;
+  animation: ap-spin .8s linear infinite;
+}
+@keyframes ap-spin { to { transform: rotate(360deg); } }
+
+/* disabled buttons look inert */
+/* .ap-btn[disabled]{
+  opacity:.6; cursor:not-allowed; box-shadow:none;
+} */
+
+
 
 /* small screens */
 @media (max-width: 760px){
@@ -244,8 +256,8 @@
   padding:3px 8px; border-radius:999px; font-size:11px; border:1px solid currentColor;
   white-space:nowrap;
 }
-.ap-chip--pass{ color:var(--ok); }
-.ap-chip--fail{ color:var(--fail); }
+.ap-chip--pass{ color:var(--ok); background-color: #e4ffe4; }
+.ap-chip--fail{ color:var(--fail); background-color: #ffebeb; }
 .ap-chip--note{ color:var(--note); }
 .ap-chip--req{ color:#f59e0b; }
 .ap-chip--opt{ color:#64748b; }
@@ -871,6 +883,24 @@
 
 
 
+/* Verification: disabled status buttons = white bg + gray border; no card dimming */
+.ap-btn[disabled]{
+  opacity: 1;                 /* don't fade */
+  background: #fff;           /* white background */
+  color: #94a3b8;             /* slate-400 text/icon */
+  border: 1.5px solid #e5e7eb;/* light gray border */
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.ap-btn.primary[disabled],
+.ap-btn.danger[disabled],
+.ap-btn.outline[disabled],
+.ap-btn.ghost[disabled]{
+  background:#fff;
+  color:#94a3b8;
+  border-color:#e5e7eb;
+}
+.ap-btn[disabled] svg{ color: currentColor; opacity:.9; } /* icons match text */
 
 
 
@@ -884,4 +914,126 @@
 .ap-microstats .ms-pass { color:#16a34a; }
 .ap-microstats .ms-fail { color:#dc2626; }
 .ap-microstats .ms-untested { color:#6b7280; }
+
+
+
+/*==================================================================*/
+/* PhaseForm */
+/*==================================================================*/
+
+/* Wider modal card */
+.ap-modal__card--wide { width: min(780px, 95vw); }
+
+/* Context chips (Bank / Project) */
+.ap-contextChips { display:flex; gap:8px; margin: 0 20px 10px; }
+.ap-chip--tag { background:#f1f5f9; color:#0f172a; border:1px solid #e5e7eb; border-radius:999px; padding:4px 10px; font-size:13px; }
+
+/* Grid layout: 2 cols desktop, 1 col mobile */
+.ap-formGrid { display:grid; grid-template-columns: 1fr 1fr; gap:14px 16px; padding: 0 20px 16px; }
+.ap-formGrid .full { grid-column: 1 / -1; }
+.ap-field { display:flex; flex-direction:column; gap:6px; }
+.ap-field label { font-weight:600; color:#0f172a; }
+
+/* Inputs */
+.ap-form input, .ap-form select, .ap-form textarea {
+  height: 40px; padding: 8px 10px; border:1.5px solid #e5e7eb; border-radius:10px; font-size:14px;
+  background:#fff; color:#0f172a; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.ap-form textarea { height:auto; min-height:84px; resize:vertical; line-height:1.45; }
+.ap-form input:focus, .ap-form select:focus, .ap-form textarea:focus {
+  outline:none; border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,.25);
+}
+
+/* Hint / code preview */
+.ap-help { font-size:12px; color:#64748b; }
+.ap-code { background:#f1f5f9; padding:2px 6px; border-radius:6px; }
+
+/* Sticky footer */
+.ap-modal__foot--sticky {
+  position: sticky; bottom: -1px;
+  display:flex; gap:8px; justify-content:flex-end;
+  padding:12px 20px; background:linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,.85));
+  border-top:1px solid #e5e7eb; border-bottom-left-radius:10px; border-bottom-right-radius:10px;
+}
+
+/* Mobile */
+@media (max-width: 720px){
+  .ap-formGrid { grid-template-columns: 1fr; }
+}
+
+/* ===== Accent modal ===== */
+:root{
+  --accent:#2563eb;         /* primary акцент (сина) */
+  --accent-600:#1d4ed8;
+  --on-accent:#f8fafc;      /* текст на акцент */
+}
+
+/* поголема ширина */
+.ap-modal__card--xl{ width:min(880px,96vw); }
+
+/* header со боја/градиент */
+.ap-modal__head--accent{
+  background: linear-gradient(180deg, color-mix(in oklab,var(--accent),white 10%) 0%, var(--accent) 100%);
+  color: var(--on-accent);
+  padding: 18px 20px;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+  position: relative;
+}
+.ap-modal__head--accent .ap-modal__title{ font-size: 22px; line-height: 1.2; margin: 2px 0 6px; }
+.ap-eyebrow{ font-size:12px; letter-spacing:.08em; text-transform:uppercase; opacity:.9; }
+.ap-modal__close{ color: var(--on-accent); border-color: color-mix(in oklab,var(--on-accent),black 20%); }
+.ap-contextChips{ display:flex; gap:8px; flex-wrap:wrap; }
+.ap-chip--on-accent{
+  background: color-mix(in oklab, var(--on-accent), transparent 0%);
+  color: #0f172a;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+/* грид layout: 2 колони на десктоп */
+.ap-formGrid{ display:grid; gap:14px 16px; padding:16px 20px 8px; }
+.ap-formGrid--2{ grid-template-columns: 1fr 1fr; }
+.ap-formGrid .full{ grid-column: 1 / -1; }
+
+.ap-section__title{
+  font-weight: 700; font-size: 13px; letter-spacing:.02em; text-transform:uppercase;
+  color:#0f172a; background:#f8fafc; padding:6px 10px; border-radius:8px; border:1px solid #e5e7eb;
+}
+
+/* полиња */
+.ap-field{ display:flex; flex-direction:column; gap:6px; }
+.ap-field label{ font-weight:600; color:#0f172a; }
+.ap-form input, .ap-form select, .ap-form textarea{
+  height:40px; padding:8px 10px; border:1.5px solid #e5e7eb; border-radius:10px; font-size:14px;
+  background:#fff; color:#0f172a; transition:border-color .15s ease, box-shadow .15s ease;
+}
+.ap-form textarea{ height:auto; min-height:88px; resize:vertical; line-height:1.45; }
+.ap-form input:focus, .ap-form select:focus, .ap-form textarea:focus{
+  outline:none; border-color:#94a3b8; box-shadow:0 0 0 3px rgba(148,163,184,.25);
+}
+
+/* hint */
+.ap-help{ font-size:12px; color:#64748b; }
+.ap-code{ background:#f1f5f9; padding:2px 6px; border-radius:6px; }
+
+/* footer со акцент за primary копчето */
+/* .ap-btn.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+.ap-btn.primary:hover{ background:var(--accent-600); border-color:var(--accent-600); } */
+
+/* sticky footer */
+.ap-modal__foot--sticky{
+  position: sticky; bottom: -1px;
+  display:flex; gap:8px; justify-content:flex-end;
+  padding:12px 20px; background:linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,.92));
+  border-top:1px solid #e5e7eb; border-bottom-left-radius:12px; border-bottom-right-radius:12px;
+}
+
+/* мобилно */
+@media (max-width:720px){
+  .ap-formGrid--2{ grid-template-columns:1fr; }
+}
+
 

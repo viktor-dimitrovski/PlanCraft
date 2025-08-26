@@ -63,9 +63,24 @@ export default function VerificationPage({ phase, criteria, onBack, onUpdateStat
   const [expanded, setExp]    = useState({})   // id -> bool (read more)
   const [noteFor, setNoteFor] = useState(null) // criterion object for modal
 
+  // Local optimistic overrides (id -> {status, note})
+  const [local, setLocal] = useState({})
+  // Per-card busy (id -> true)
+  const [busy, setBusy]   = useState({})
+
   const toggleExpand = (id) => setExp(prev => ({ ...prev, [id]: !prev[id] }))
 
-  const required = useMemo(() => criteria.filter(c => c.isRequired), [criteria])
+  // Merge server criteria with local overrides so header stats + cards update instantly
+  const merged = useMemo(
+    () => criteria.map(c => ({
+      ...c,
+      status: local[c.id]?.status ?? c.status,
+      note: local[c.id]?.note ?? c.note
+    })),
+    [criteria, local]
+  )
+
+  const required = useMemo(() => merged.filter(c => c.isRequired), [merged])
   const passedReq = useMemo(
     () => required.filter(c => c.status === 1 || c.status === 3 || c.status === 4),
     [required]
@@ -74,24 +89,32 @@ export default function VerificationPage({ phase, criteria, onBack, onUpdateStat
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return criteria.filter(c => {
+    return merged.filter(c => {
       if (filter === 'required' && !c.isRequired) return false
       if (filter === 'open' && !(c.isRequired && !(c.status === 1 || c.status === 3 || c.status === 4))) return false
       if (!q) return true
       const hay = `${c.title || ''} ${c.note || ''}`.toLowerCase()
       return hay.includes(q)
     })
-  }, [criteria, filter, query])
+  }, [merged, filter, query])
 
-    const onPass = (c) => onUpdateStatus(phase.id, c.id, 1, "");
-    const onFail = (c) => onUpdateStatus(phase.id, c.id, 2, "");
-    const onReset = (c) => onUpdateStatus(phase.id, c.id, 0, "");
-
-  const onSaveNote = async (text) => {
-    if (!noteFor) return
-    await onUpdateStatus(phase.id, noteFor.id, 3, text)
-    setNoteFor(null)
+  // Unified action with 1s delay + optimistic update
+  async function applyStatus(c, status, note = '') {
+    setBusy(b => ({ ...b, [c.id]: true }))
+    await new Promise(r => setTimeout(r, 1000))            // gentle UX delay
+    try {
+      await onUpdateStatus(phase.id, c.id, status, note)   // server call
+      setLocal(l => ({ ...l, [c.id]: { status, note } }))  // optimistic UI
+      setNoteFor(null)
+    } finally {
+      setBusy(b => ({ ...b, [c.id]: false }))
+    }
   }
+
+  const onPass  = (c) => applyStatus(c, 1, '')
+  const onFail  = (c) => applyStatus(c, 2, '')
+  const onReset = (c) => applyStatus(c, 0, '')
+  const onSaveNote = (text) => noteFor && applyStatus(noteFor, 3, text)
 
   return (
     <div className="ap-verify">
@@ -105,7 +128,7 @@ export default function VerificationPage({ phase, criteria, onBack, onUpdateStat
 
         <div className="ap-verify__stats">
           <div className="ap-chip ap-chip--muted">{passedReq.length}/{required.length} required</div>
-          <div className="ap-chip ap-chip--muted">{criteria.length} total</div>
+          <div className="ap-chip ap-chip--muted">{merged.length} total</div>
           <Progress value={pct ?? 0} />
         </div>
 
@@ -132,6 +155,9 @@ export default function VerificationPage({ phase, criteria, onBack, onUpdateStat
           const isFail = c.status === 2
           const isExpanded = !!expanded[c.id]
 
+          const isBusy = !!busy[c.id]
+          const locked = (c.status ?? 0) !== 0 // after pass/fail/note -> lock buttons (reset stays)
+
           return (
             <article
               key={c.id}
@@ -152,20 +178,47 @@ export default function VerificationPage({ phase, criteria, onBack, onUpdateStat
                 {c.note && <span className="ap-chip ap-chip--note"><NoteIcon/> Note</span>}
               </div>
 
-              {/* Scenario text (title holds full scenario) */}
+              {/* Scenario text */}
               <div className="ap-scenario">
                 <div className="ap-scenario__text">{c.title}</div>
-                <button className="ap-link ap-scenario__toggle" onClick={()=>toggleExpand(c.id)}>
+                <button className="ap-link ap-scenario__toggle" onClick={()=>setExp(s=>({...s, [c.id]:!s[c.id]}))}>
                   {isExpanded ? 'Read less' : 'Read more'}
                 </button>
               </div>
 
-              {/* Actions row (equal width buttons) */}
+              {/* Actions row */}
               <div className="ap-verifyCard__actions" role="toolbar" aria-label="Actions">
-                <button className="ap-btn primary ap-btn--block" onClick={()=>onPass(c)}><CheckIcon/> Pass</button>
-                <button className="ap-btn danger outline ap-btn--block" onClick={()=>onFail(c)}><XIcon/> Fail</button>
-                <button className="ap-btn ghost ap-btn--block" onClick={()=>setNoteFor(c)}><NoteIcon/> Note</button>
-                <button className="ap-btn ghost ap-btn--block" onClick={()=>onReset(c)}><ResetIcon/> Reset</button>
+                <button
+                  className="ap-btn primary ap-btn--block"
+                  onClick={()=>onPass(c)}
+                  disabled={locked || isBusy}
+                >
+                  {isBusy ? <span className="ap-spinner" aria-hidden="true"/> : <><CheckIcon/> Pass</>}
+                </button>
+
+                <button
+                  className="ap-btn danger outline ap-btn--block"
+                  onClick={()=>onFail(c)}
+                  disabled={locked || isBusy}
+                >
+                  {isBusy ? <span className="ap-spinner" aria-hidden="true"/> : <><XIcon/> Fail</>}
+                </button>
+
+                <button
+                  className="ap-btn ghost ap-btn--block"
+                  onClick={()=>setNoteFor(c)}
+                  disabled={locked || isBusy}
+                >
+                  <NoteIcon/> Note
+                </button>
+
+                <button
+                  className="ap-btn ghost ap-btn--block"
+                  onClick={()=>onReset(c)}
+                  disabled={isBusy || (!locked && !c.note)}
+                >
+                  <ResetIcon/> Reset
+                </button>
               </div>
 
               {/* Existing note */}
@@ -189,16 +242,10 @@ export default function VerificationPage({ phase, criteria, onBack, onUpdateStat
   )
 }
 
-// Progress.jsx
-function Progress({
-  value,
-  className = '',
-  ariaLabel = 'Progress',
-  showLabel = true,
-}) {
+// Progress (unchanged)
+function Progress({ value, className = '', ariaLabel = 'Progress', showLabel = true }) {
   const n = Number.isFinite(+value) ? +value : 0;
   const v = Math.max(0, Math.min(100, n));
-
   return (
     <div
       className={`ap-progress ${className}`}
@@ -207,6 +254,7 @@ function Progress({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={v}
+      data-size="md"
     >
       <div className="ap-progress__bar" style={{ width: `${v}%` }} />
       {showLabel && <span className="ap-progress__label">{v}%</span>}
