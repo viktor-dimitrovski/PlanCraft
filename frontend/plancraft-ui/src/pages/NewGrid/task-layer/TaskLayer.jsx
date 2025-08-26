@@ -1,14 +1,16 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { DndContext, useSensor, useSensors, MouseSensor, TouchSensor } from '@dnd-kit/core'
-import { useDraggable } from '@dnd-kit/core'
+import { useDraggable, useDndMonitor } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import { dayStatus } from '../work-calendar'
-import { daysPerColumn, clamp, addDays, getScrollParent, applyAutoScroll } from '../dragMath'
+import { daysPerColumn, clamp, addDays } from '../dragMath'
 
 const DAY = 24 * 60 * 60 * 1000
 const toStartOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x }
 
+/**
+ * Compute left/top/width for every task card.
+ */
 function computeLayout({ cols, people, zoom, tasks, colW, laneH }){
   const dpc = daysPerColumn(zoom)
   const gridStart = cols?.[0]?.start ? new Date(cols[0].start) : null
@@ -52,15 +54,9 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
 
   // Tooltip state (anchored to card, not pointer)
   const [tip, setTip] = useState(null) // { id, x, y, title, dateRange, duration }
-
-  // DnD
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 50, tolerance: 4 } }),
-  )
   const [dragId, setDragId] = useState(null)
-  const pointerRef = useRef({ x: 0, y: 0 })
 
+  // Sync lane height from CSS var
   useEffect(() => {
     const cs = getComputedStyle(document.documentElement)
     const lh = parseFloat(cs.getPropertyValue('--ng-laneH')) || 56
@@ -71,6 +67,7 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
   const dpc = daysPerColumn(zoom)
   const gridStart = cols?.[0]?.start ? new Date(cols[0].start) : null
 
+  // Merge tasks with local edits
   const effectiveTasks = useMemo(() => {
     if(localEdits.size === 0) return tasks
     return tasks.map(t => {
@@ -80,12 +77,13 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
     })
   }, [tasks, localEdits])
 
+  // Derived layout (filtered by hiddenIds for demo delete)
   const layout = useMemo(() => {
     const visible = effectiveTasks.filter(t => !hiddenIds.has(String(t.id)))
     return computeLayout({ cols, people, zoom, tasks: visible, colW, laneH })
   }, [cols, people, zoom, effectiveTasks, colW, laneH, hiddenIds])
 
-  // Keyboard
+  // Keyboard: Esc = deselect; Delete/Backspace = "remove" (demo hide)
   useEffect(() => {
     function onKey(e){
       if(e.key === 'Escape'){
@@ -99,6 +97,7 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
     return () => window.removeEventListener('keydown', onKey)
   }, [selectedId])
 
+  // If the hovered card disappears (e.g., after delete), remove tooltip
   useEffect(() => {
     if(tip && !layout.some(c => c.id === tip.id)){
       setTip(null)
@@ -109,7 +108,6 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
 
   // Show tooltip anchored to card (no mousemove updates)
   function showTipForCard(card){
-    // position the tooltip above the card, centered
     const x = card.left + (card.width / 2)
     const y = card.top - (laneH / 2) - 8
     setTip(prev => (prev?.id === card.id ? prev : {
@@ -127,83 +125,56 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
       setSelectedId(null); setTip(null)
     }
   }
-  function onLayerLeave(){
-    setTip(null)
-  }
+  function onLayerLeave(){ setTip(null) }
 
-  // Auto-scroll while dragging
-  useEffect(() => {
-    function onMove(ev){
-      pointerRef.current = { x: ev.clientX, y: ev.clientY }
-      if(dragId){
-        const container = getScrollParent(rootRef.current)
-        applyAutoScroll(container, pointerRef.current, { edge: 48, maxSpeed: 32 })
+  // Listen to top-level DnD for card drags
+  useDndMonitor({
+    onDragStart(event){
+      const id = String(event?.active?.id ?? '')
+      if(layout.some(c => c.id === id)){
+        setDragId(id); setSelectedId(id); setTip(null)
       }
+    },
+    onDragCancel(){ setDragId(null) },
+    onDragEnd(event){
+      const id = String(event?.active?.id ?? '')
+      if(!layout.some(c => c.id === id)){ setDragId(null); return }
+      const delta = event?.delta || { x: 0, y: 0 }
+      const card = layout.find(c => c.id === id)
+      if(!card || !gridStart){ setDragId(null); return }
+
+      const nextLeft = card.left + Math.round(delta.x)
+      const nextTop  = card.top  + Math.round(delta.y)
+
+      const colIndex = Math.max(0, Math.round(nextLeft / colW))
+      const startDate = addDays(toStartOfDay(gridStart), colIndex * dpc)
+
+      const approxIdx = Math.round((nextTop - (laneH / 2)) / laneH)
+      const clampedIdx = clamp(approxIdx, 0, Math.max(people.length - 1, 0))
+      const nextPerson = people?.[clampedIdx]
+      const nextPersonId = nextPerson ? String(nextPerson.id) : card.personId
+
+      if(typeof onTaskUpdate === 'function'){
+        onTaskUpdate({ id, personId: nextPersonId, start: startDate, startDate, durationDays: card.durationDays, title: card.title, color: card.color })
+      }else{
+        setLocalEdits(prev => { const next = new Map(prev); next.set(id, { start: startDate, personId: nextPersonId }); return next })
+      }
+      setDragId(null)
     }
-    window.addEventListener('pointermove', onMove, { passive: true })
-    return () => window.removeEventListener('pointermove', onMove)
-  }, [dragId])
+  })
 
-  // DnD handlers
-  function onDragStart(evt){
-    const id = String(evt?.active?.id ?? '')
-    setDragId(id)
-    setSelectedId(id)
-    setTip(null) // hide tooltip on drag start
-  }
-  function onDragCancel(){ setDragId(null) }
-  function onDragEnd(evt){
-    const id = String(evt?.active?.id ?? '')
-    const delta = evt?.delta || { x: 0, y: 0 }
-    const card = layout.find(c => c.id === id)
-    if(!card || !gridStart){ setDragId(null); return }
-
-    const nextLeft = card.left + Math.round(delta.x)
-    const nextTop  = card.top  + Math.round(delta.y)
-
-    const colIndex = Math.max(0, Math.round(nextLeft / colW))
-    const startDate = addDays(toStartOfDay(gridStart), colIndex * dpc)
-
-    const approxIdx = Math.round((nextTop - (laneH / 2)) / laneH)
-    const clampedIdx = clamp(approxIdx, 0, Math.max(people.length - 1, 0))
-    const nextPerson = people?.[clampedIdx]
-    const nextPersonId = nextPerson ? String(nextPerson.id) : card.personId
-
-    if(typeof onTaskUpdate === 'function'){
-      onTaskUpdate({
-        id,
-        personId: nextPersonId,
-        start: startDate,
-        startDate: startDate,
-        durationDays: card.durationDays,
-        title: card.title,
-        color: card.color
-      })
-    }else{
-      setLocalEdits(prev => {
-        const next = new Map(prev)
-        next.set(id, { start: startDate, personId: nextPersonId })
-        return next
-      })
-    }
-
-    setDragId(null)
-  }
-
-  // Draggable card (composes base CSS transform with drag transform to avoid jump)
+  // Draggable card — composes base CSS transform with drag transform so it doesn't jump
   function DraggableCard({ card }){
     const {attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({ id: card.id })
-    const dragT = CSS.Translate.toString(transform) // e.g., translate3d(x, y, 0)
-    const composed = transform
-      ? `translateY(calc(-50% + var(--ng-card-yshift))) ${dragT}`
-      : undefined // let CSS apply its own base transform when idle
-
+    const dragT = CSS.Translate.toString(transform) // translate3d(x,y,0)
     const style = {
       left: card.left,
       top: card.top,
       width: card.width,
       borderLeftColor: card.color || '#2563eb',
-      transform: composed,
+      transform: transform
+        ? `translateY(calc(-50% + var(--ng-card-yshift))) ${dragT}`
+        : undefined,
       willChange: transform ? 'transform' : undefined,
     }
     return (
@@ -227,29 +198,22 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      onDragStart={onDragStart}
-      onDragCancel={onDragCancel}
-      onDragEnd={onDragEnd}
+    <div
+      ref={rootRef}
+      className="ng-taskLayer"
+      onClick={onLayerClick}
+      onMouseLeave={onLayerLeave}
     >
-      <div
-        ref={rootRef}
-        className="ng-taskLayer"
-        onClick={onLayerClick}
-        onMouseLeave={onLayerLeave}
-      >
-        {layout.map(card => (<DraggableCard key={card.id} card={card} />))}
+      {layout.map(card => (<DraggableCard key={card.id} card={card} />))}
 
-        {tip && !dragId && (
-          <div className="ng-tooltip" style={{ left: tip.x, top: tip.y }} role="tooltip">
-            <div className="ng-tooltip__title">{tip.title}</div>
-            <div className="ng-tooltip__meta">{tip.dateRange}</div>
-            <div className="ng-tooltip__meta">{tip.duration}</div>
-            <div className="ng-tooltip__keys">Esc – deselect · Del – remove</div>
-          </div>
-        )}
-      </div>
-    </DndContext>
+      {tip && !dragId && (
+        <div className="ng-tooltip" style={{ left: tip.x, top: tip.y }} role="tooltip">
+          <div className="ng-tooltip__title">{tip.title}</div>
+          <div className="ng-tooltip__meta">{tip.dateRange}</div>
+          <div className="ng-tooltip__meta">{tip.duration}</div>
+          <div className="ng-tooltip__keys">Esc – deselect · Del – remove</div>
+        </div>
+      )}
+    </div>
   )
 }

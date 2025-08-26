@@ -1,351 +1,80 @@
-
-/* ==============================
-   NewGrid v1 — base layer only
-   Compact, modern, thick scrollbars; sticky headers & left lanes
-   ============================== */
-
 :root{
-  --ng-leftWidth: 320px;
-  --ng-laneH: 56px;
-  --ng-headerH1: 36px;
+  --ng-lanesW: 320px;
+  --ng-headerH1: 32px;
   --ng-headerH2: 28px;
-  --ng-gridLine: #e5e7eb; /* neutral-200 */
-  --ng-stroke: #d1d5db;   /* neutral-300 */
-  --ng-bg: #fff;
-  --ng-ink: #111827;      /* neutral-900 */
-  --ng-muted: #6b7280;    /* neutral-500 */
-  --ng-brand: #2563eb;    /* blue-600 */
-  --ng-card-yshift: -8px;
-  --ng-today-offset: -60px;
+  --ng-laneH: 56px;
+  --ng-colW: 96px;
+  --ng-stroke: #e5e7eb;
+  --ng-accent: #2563eb;
 }
 
-html, body, #root { height: 100%; }
-body { margin: 0; color: var(--ng-ink); background: #fafafa; }
-
-/* Thick, visible scrollbars */
-* {
-  scrollbar-width: auto;
-  scrollbar-color: var(--ng-muted) #f3f4f6;
-}
-*::-webkit-scrollbar {
-  height: 14px;
-  width: 14px;
-}
-*::-webkit-scrollbar-thumb {
-  background: var(--ng-muted);
-  border-radius: 10px;
-  border: 3px solid #f3f4f6;
-}
-*::-webkit-scrollbar-track {
-  background: #f3f4f6;
-}
-
-/* App shell */
+/* layout */
 .ng-shell{
-  --ng-leftWidth: var(--leftWidth, 320px);
-  display: grid;
-  grid-template-columns: var(--ng-leftWidth) 1fr;
+  display:grid;
+  grid-template-columns: auto 1fr;
   grid-template-rows: auto 1fr;
-  height: 100vh;
-  container-type: inline-size;
+  height: 100%;
 }
-
-/* Toolbar */
 .ng-toolbar{
-  grid-column: 1 / -1;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 14px;
-  background: #ffffff;
-  border-bottom: 1px solid var(--ng-stroke);
-  position: sticky;
-  top: 0;
-  z-index: 50;
+  grid-column: 1 / span 2;
+  grid-row: 1;
+  display:flex; align-items:center; gap:12px; padding:8px 10px; border-bottom:1px solid var(--ng-stroke);
+  background:#f8fafc;
 }
-.ng-pill{
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border: 1px solid var(--ng-stroke);
-  border-radius: 999px;
-  background: #fff;
-}
-.ng-label{ font-size: 12px; color: var(--ng-muted); }
-.ng-select, .ng-input{
-  height: 28px;
-  border: 1px solid var(--ng-stroke);
-  border-radius: 8px;
-  padding: 0 8px;
-  background: #fff;
-}
+.ng-gridWrap{ grid-column: 2; grid-row: 2; min-width:0; position:relative; }
+.ng-left{ padding:8px; }
+aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); background:#fff; }
 
-/* Left sidebar (resizable) */
-.ng-left{
-  position: relative;
-  overflow: hidden;
-  border-right: 1px solid var(--ng-stroke);
-  background: #ffffff;
-}
-.ng-left .people{
-  height: calc(100vh - var(--ng-headerH1) - var(--ng-headerH2) - 49px); /* minus toolbar */
-  overflow: auto;
-}
-.ng-person{
-  display: grid;
-  grid-template-columns: 1fr;
-  align-items: center;
-  height: var(--ng-laneH);
-  padding: 0 12px;
-  border-bottom: 1px solid var(--ng-gridLine);
-}
+/* body */
+.ng-scroll{ overflow:auto; height:100%; }
+.ng-body{ display:grid; grid-template-columns: var(--ng-lanesW) 1fr; min-width: 900px; }
 
-/* Grid area */
-.ng-gridWrap{
-  position: relative;
-  overflow: hidden;
-  background: var(--ng-bg);
-}
-/* Scroll container holds both headers (sticky) and body (scrollable) */
-.ng-scroll{
-  position: absolute;
-  inset: 0;
-  overflow: auto;
-}
+/* left */
+.ng-bodyLeft{ border-right:1px solid var(--ng-stroke); background:#fff; }
+.ng-headerH1{ height:var(--ng-headerH1); border-bottom:1px solid var(--ng-stroke); }
+.ng-headerH2{ height:var(--ng-headerH2); border-bottom:1px solid var(--ng-stroke); }
+.people .ng-person{ height:var(--ng-laneH); display:flex; align-items:center; padding:0 12px; border-bottom:1px solid rgba(2,6,23,.06); }
+.ng-lane--over{ background: rgba(37,99,235,.08); }
 
-/* Header rows (sticky) */
-.ng-header{
-  position: sticky;
-  top: 0;
-  z-index: 40;
-  background: #fff;
-}
-.ng-headerRow1{
-  display: grid;
-  
-  
-  height: var(--ng-headerH1);
-  border-bottom: 1px solid var(--ng-stroke);
-}
-.ng-monthCell{
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-  white-space: nowrap;
-  font-weight: 600;
-  background: #f9fafb;
-  border-right: 1px solid var(--ng-gridLine);
-}
-.ng-headerRow2{
-  display: grid;
-  
-  
-  height: var(--ng-headerH2);
-  border-bottom: 1px solid var(--ng-stroke);
-}
-.ng-colLabel{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  color: var(--ng-muted);
-  border-right: 1px solid var(--ng-gridLine);
-}
+/* right */
+.ng-bodyRight{ position:relative; }
+.ng-months{ display:grid; border-bottom:1px solid var(--ng-stroke); background:#fff; }
+.ng-month{ font-weight:600; padding:6px 8px; border-right:1px solid var(--ng-stroke); }
+.ng-cols{ display:grid; border-bottom:1px solid var(--ng-stroke); background:#fff; }
+.ng-colHead{ height:var(--ng-headerH2); display:flex; align-items:center; justify-content:flex-start; border-right:1px solid var(--ng-stroke); padding:0 8px; }
+.ng-colLabel{ font-size:12px; color:#334155; }
 
-/* Body grid */
-.ng-body{
-  display: grid;
-  grid-template-columns: var(--ng-leftWidth) 1fr;
-}
-.ng-bodyLeft{
-  position: sticky;
-  left: 0;
-  z-index: 30;
-  background: #fff;
-  border-right: 1px solid var(--ng-stroke);
-}
-.ng-bodyRight{
-  position: relative;
-}
+/* grid background */
+.ng-gridBg{ display:grid; }
+.ng-bgCol{ border-right:0; }
+.ng-laneRow{ height:var(--ng-laneH); border-bottom:1px solid rgba(2,6,23,.06); }
 
-/* Background grid layer */
-.ng-gridBg{
-  display: grid;
-  
-  
-}
-.ng-bgCol{
-  border-right: 1px solid var(--ng-gridLine);
-}
-.ng-laneRow{
-  height: var(--ng-laneH);
-  border-bottom: 1px solid var(--ng-gridLine);
-}
+/* non-work soft */
+.ng-nonworkLayer{ display:none; } /* enable if needed */
 
-/* Empty task overlay (top layer placeholder) */
+/* task layer */
 .ng-taskLayer{
-  position: absolute;
-  inset: calc(var(--ng-headerH1) + var(--ng-headerH2)) 0 0 0;
-  pointer-events: none; /* base step has no interactions yet */
+  position:absolute; left:0; right:0;
+  top: calc(var(--ng-headerH1) + var(--ng-headerH2));
+  bottom:0; pointer-events:none;
 }
+.ng-taskLayer *{ pointer-events:auto; }
 
+/* sidebar phases */
+.ng-phases .bank{ margin-bottom:6px; }
+.bankBtn,.projBtn{ width:100%; text-align:left; padding:6px 8px; border:1px solid var(--ng-stroke); background:#fff; border-radius:6px; margin:6px 0 4px; }
+.dot{ width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px; }
+.count{ float:right; color:#64748b; }
+.phaseList{ display:flex; flex-direction:column; gap:4px; padding-left:8px; }
+.phaseItem{ border:1px solid var(--ng-stroke); border-left:3px solid var(--ng-accent); border-radius:8px; padding:6px 8px; background:#fff; cursor:grab; }
+.phaseItem.dragging{ opacity:.7; }
 
-/* Thicker vertical lines for week boundaries */
-.ng-bgColWeek{ border-right: 2px solid var(--ng-stroke); }
-.ng-headerRow2 .ng-colLabel{ border-right: 1px solid var(--ng-gridLine); }
+/* toolbar small */
+.ng-btn{ padding:6px 10px; border:1px solid var(--ng-stroke); border-radius:6px; background:#fff; cursor:pointer; }
+.ng-select,.ng-input{ padding:6px 10px; border:1px solid var(--ng-stroke); border-radius:6px; background:#fff; }
+.ng-pill{ display:flex; align-items:center; gap:8px; }
+.ng-label{ color:#475569; font-size:12px; }
 
-/* Thicker vertical lines for month boundaries */
-.ng-bgColMonth{ border-right: 3px solid var(--ng-ink); }
-
-
-/* Spacer to align first person row exactly under the calendar header (right grid) */
-.ng-leftHeaderSpacer{
-  height: calc(var(--ng-headerH1) + var(--ng-headerH2));
-  border-bottom: 1px solid var(--ng-stroke);
-}
-
-
-/* ===== Task overlay (render-only) ===== */
-.ng-taskLayer{
-  position: absolute;
-  inset: calc(var(--ng-headerH1) + var(--ng-headerH2)) 0 0 0;
-  z-index: 10;
-  pointer-events: none; /* cards re-enable */
-}
-.ng-card{
-  box-sizing: border-box;
-  --ng-card-vpad: 8px;
-  height: calc(var(--ng-laneH) - (var(--ng-card-vpad) * 2));
-  top: 50%;
-  transform: translateY(calc(-50% + var(--ng-card-yshift)));
-  position: absolute;
-  height: calc(var(--ng-laneH) - 8px);
-  background: #fff;
-  border: 1px solid var(--ng-stroke);
-  border-left: 4px solid var(--ng-brand);
-  border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-  padding: 6px 8px;
-  overflow: hidden;
-  pointer-events: auto;
-}
-.ng-cardTitle{
-  font-size: 12px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-}
-
-
-/* ===== Today marker (GitHub-like) ===== */
-.ng-today{
-  position: absolute;
-  top: calc(var(--ng-headerH1) + var(--ng-headerH2) + var(--ng-today-offset));
-  bottom: 0;
-  width: 0;
-  border-left: 2px solid #e11d48;
-  pointer-events: none;
-  z-index: 6;
-}
-.ng-today-nub{
-  position: absolute;
-  top: calc(var(--ng-headerH1) + var(--ng-headerH2) - 6px + var(--ng-today-offset));
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #e11d48;
-  transform: translateX(-4px);
-  z-index: 7;
-}
-
-/* ===== Non-working overlay ===== */
-.ng-nonworkLayer{
-  position: absolute;
-  inset: calc(var(--ng-headerH1) + var(--ng-headerH2)) 0 0 0;
-  z-index: 7;
-  pointer-events: none;
-}
-.ng-nonwork{ position:absolute; background: rgba(241,245,249,0.9); }
-.ng-nonwork--weekend{
-  background: repeating-linear-gradient(
-    135deg,
-    rgba(59,130,246,0.10) 0px,
-    rgba(59,130,246,0.10) 6px,
-    rgba(59,130,246,0.00) 6px,
-    rgba(59,130,246,0.00) 12px
-  );
-}
-.ng-nonwork--holiday{ background: rgba(234,88,12,0.16); }
-.ng-nonwork--leave{
-  background: repeating-linear-gradient(
-    135deg,
-    rgba(16,185,129,0.16) 0px,
-    rgba(16,185,129,0.16) 8px,
-    rgba(16,185,129,0.05) 8px,
-    rgba(16,185,129,0.05) 16px
-  );
-}
-.ng-card--warn{
-  box-shadow: 0 0 0 1px rgba(234,88,12,0.35) inset, 0 1px 2px rgba(0,0,0,0.06);
-}
-.ng-card--warn::after{
-  content: "!";
-  position: absolute; right: 6px; top: 4px;
-  font-weight: 700; font-size: 12px; color: #ea580c;
-}
-
-
-/* Selected card state */
-.ng-card--selected{
-  outline: 2px solid rgba(59,130,246,0.75); /* blue-500 */
-  box-shadow: 0 2px 6px rgba(0,0,0,0.12), 0 0 0 2px rgba(59,130,246,0.10);
-}
-
-/* Simple tooltip for cards */
-.ng-tooltip{
-  position: absolute;
-  z-index: 50;
-  pointer-events: none;
-  max-width: 320px;
-  transform: translateY(-8px);
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(0,0,0,0.08);
-  background: #111827;       /* neutral-900 */
-  color: #f9fafb;            /* neutral-50 */
-  font-size: 12px;
-  line-height: 1.3;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
-}
-.ng-tooltip__title{ font-weight: 600; margin-bottom: 2px; }
-.ng-tooltip__meta{ opacity: 0.9; }
-.ng-tooltip__keys{ margin-top: 6px; opacity: 0.7; font-style: italic; }
-
-
-
-/* Dragging visuals */
-.ng-card--dragging{
-  opacity: 0.95;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.20), 0 0 0 2px rgba(59,130,246,0.35);
-  cursor: grabbing;
-}
-.ng-card .ng-cardDragHandle{
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 8px;
-  cursor: grab;
-  opacity: 0.25;
-}
-.ng-noselect, .ng-noselect *{
-  user-select: none !important;
-}
-
-
-
-
-.ng-card{
-  will-change: transform;
-}
-.ng-tooltip{ pointer-events: none; }
-
+/* ghost */
+.ng-ghostCard{ padding:8px 10px; border-left:4px solid var(--ng-accent); background:white; box-shadow:0 8px 24px rgba(0,0,0,.2); border-radius:10px; }
+.ng-ghostTitle{ font-weight:600; font-size:13px; }

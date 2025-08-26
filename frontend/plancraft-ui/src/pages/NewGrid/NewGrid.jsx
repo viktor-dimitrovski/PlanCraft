@@ -1,152 +1,295 @@
-
 import React, { useMemo, useRef, useState, useEffect } from 'react'
 import ResizableSidebar from '../../components/ResizableSidebar'
+import PhaseSidebar from './PhaseSidebar'
 import { buildMonthSegments } from './calendar'
 import './newgrid.css'
 import TaskLayer from './task-layer/TaskLayer'
 import TodayMarker from './task-layer/TodayMarker'
 import NonWorkLayer from './task-layer/NonWorkLayer'
-import usePlannerData from '../hooks/usePlannerData'
+import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDroppable } from '@dnd-kit/core'
+import { fetchPeople, createPhaseAssignment, updatePhaseAssignment, listPhaseAssignments } from '../../lib/api'
 
-// Generate demo people list (placeholder). In later steps we'll wire true data.
-
-const demoTasks = (from) => {
-  // generate a few demo tasks aligned to columns (snap-based)
-  const y = from.getFullYear(), m = from.getMonth()
-  return [
-    { id:'T1', personId:'P1',  start: new Date(y, m, 7),  durationDays: 7,  title:'Onboarding Erste' },
-    { id:'T2', personId:'P2',  start: new Date(y, m, 14), durationDays: 14, title:'API Spec Review' },
-    { id:'T3', personId:'P5',  start: new Date(y, m+1, 4), durationDays: 7, title:'Core Upgrade' },
-    { id:'T4', personId:'P10', start: new Date(y, m+1, 18), durationDays: 21, title:'Bank A – PIS Pilot' },
-  ]
+function LaneRow({ person }){
+  const { setNodeRef, isOver } = useDroppable({ id: `lane:${person.id}` })
+  return <div ref={setNodeRef} className={`ng-person ${isOver ? 'ng-lane--over' : ''}`}>{person.name}</div>
 }
-const demoPeople = Array.from({length: 24}, (_,i)=>({ id:'P'+(i+1), name: `Person ${i+1}` }))
 
 export default function NewGrid(){
-  // --- Controls ---
-  const [zoom, setZoom] = useState('day') // 'day' | 'week' | '2week'
-  const [monthSpan, setMonthSpan] = useState(12)
-  const [startMonth, setStartMonth] = useState(()=>{
-    const now = new Date()
-    return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0,7) // yyyy-mm
+  const [zoom, setZoom] = useState('week')
+  const [startMonth, setStartMonth] = useState(() => {
+    const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
   })
+  const [monthSpan, setMonthSpan] = useState(12)
 
-  // Compute time range
-  const { from, to } = useMemo(()=>{
-    const [y,m] = startMonth.split('-').map(Number)
-    const from = new Date(y, m-1, 1)
-    const to = new Date(y, (m-1) + monthSpan, 1)
+  const { from, to } = useMemo(() => {
+    const [yy, mm] = startMonth.split('-').map(Number)
+    const from = new Date(yy, (mm||1)-1, 1); from.setHours(0,0,0,0)
+    const to = new Date(yy, (mm||1)-1 + monthSpan, 1); to.setHours(0,0,0,0)
     return { from, to }
   }, [startMonth, monthSpan])
 
-  // Column width heuristics (denser for daily)
-  const colW = zoom === 'day' ? 36 : zoom === 'week' ? 96 : 128
-  // --- Real data wiring (optional): try to load from usePlannerData; fall back to demo ---
-  const { people: realPeople = [], tasks: realTasks = [], refreshGrid: refreshReal } = usePlannerData({ range: { from, to } });
-  const people = realPeople && realPeople.length ? realPeople : demoPeople;
-  const tasksEff = realTasks && realTasks.length ? realTasks : tasks;
-
-
-  const [tasks, setTasks] = useState(() => demoTasks(from))
-  useEffect(()=>{ setTasks(demoTasks(from)) }, [from])
-
-  // Build calendar columns & months for headers
-  const { cols, months } = useMemo(()=>buildMonthSegments(from, to, zoom), [from, to, zoom])
-
-  // Expose CSS var for column width
+  const colW = zoom === 'day' ? 36 : (zoom === 'week' ? 96 : 128)
+  const [laneH, setLaneH] = useState(56)
+  useEffect(()=>{
+    const cs = getComputedStyle(document.documentElement)
+    const lh = parseFloat(cs.getPropertyValue('--ng-laneH')) || 56
+    setLaneH(lh)
+  }, [zoom])
   useEffect(()=>{
     document.documentElement.style.setProperty('--ng-colW', colW+'px')
   }, [colW])
 
+  const [people, setPeople] = useState([])
+  useEffect(()=>{ fetchPeople().then(setPeople).catch(()=>setPeople([])) }, [])
+
+  const [phaseIndex, setPhaseIndex] = useState({})
+
+  const [tasks, setTasks] = useState([])
+  const [assignmentsCache, setAssignmentsCache] = useState(()=> new Map())
+  const inFlight = useRef(new Set())
+
+  const { cols, months } = useMemo(()=>buildMonthSegments(from, to, zoom), [from, to, zoom])
+
+  const pointerRef = useRef({ x: 0, y: 0 })
+  useEffect(() => {
+    const onMove = (ev) => { pointerRef.current = { x: ev.clientX, y: ev.clientY } }
+    window.addEventListener('pointermove', onMove, { passive: true })
+    return () => window.removeEventListener('pointermove', onMove)
+  }, [])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  )
+
+  const daysPerColumn = (z) => z === 'day' ? 1 : (z === 'week' ? 7 : 14)
+
+  async function refreshAssignments(visiblePhaseIds){
+    const toLoad = (visiblePhaseIds || [])
+      .map(Number)
+      .filter(pid => !inFlight.current.has(pid) && !assignmentsCache.has(pid))
+
+    if(!toLoad.length){
+      const all = []
+      assignmentsCache.forEach((list, pid) => {
+        const phase = phaseIndex[String(pid)] || {}
+        for(const a of (list||[])){
+          all.push({ 
+            id: String(a.id), assignmentId: a.id, phaseId: a.phaseId, personId: a.personId,
+            start: new Date(a.startDate),
+            durationDays: Number(a.assignedDays || phase.estimatedDays || phase.durationDays || 1),
+            title: phase.title || phase.name || `Phase ${a.phaseId}`,
+            color: phase.color || '#2563eb'
+          })
+        }
+      })
+      setTasks(all); 
+      return 
+    }
+
+    const queue = [...toLoad]
+    const results = []
+    const CONC = 4
+    const workers = new Array(CONC).fill(0).map(async () => {
+      while(queue.length){
+        const pid = queue.shift()
+        inFlight.current.add(pid)
+        try{
+          const list = await listPhaseAssignments(Number(pid))
+          results.push([pid, list||[]])
+        }catch{ results.push([pid, []]) }
+        finally{ inFlight.current.delete(pid) }
+      }
+    })
+    await Promise.all(workers)
+
+    setAssignmentsCache(prev => {
+      const next = new Map(prev)
+      for(const [pid, list] of results){
+        next.set(Number(pid), list || [])
+      }
+      return next
+    })
+
+    const all = []
+    for(const [pid, list] of results){
+      const phase = phaseIndex[String(pid)] || {}
+      for(const a of (list||[])){
+        all.push({
+          id: String(a.id), assignmentId: a.id, phaseId: a.phaseId, personId: a.personId,
+          start: new Date(a.startDate),
+          durationDays: Number(a.assignedDays || phase.estimatedDays || phase.durationDays || 1),
+          title: phase.title || phase.name || `Phase ${a.phaseId}`,
+          color: phase.color || '#2563eb'
+        })
+      }
+    }
+    assignmentsCache.forEach((list, pid) => {
+      if(toLoad.includes(Number(pid))) return
+      const phase = phaseIndex[String(pid)] || {}
+      for(const a of (list||[])){
+        all.push({
+          id: String(a.id), assignmentId: a.id, phaseId: a.phaseId, personId: a.personId,
+          start: new Date(a.startDate),
+          durationDays: Number(a.assignedDays || phase.estimatedDays || phase.durationDays || 1),
+          title: phase.title || phase.name || `Phase ${a.phaseId}`,
+          color: phase.color || '#2563eb'
+        })
+      }
+    })
+    setTasks(all)
+  }
+
+  const [activeDragId, setActiveDragId] = useState(null)
+  const renderGhost = () => {
+    if(!activeDragId || !activeDragId.startsWith('phase:')) return null
+    const phaseId = Number(activeDragId.split(':')[1])
+    const phase = phaseIndex[String(phaseId)] || {}
+    const title = phase.title || phase.name || `Phase ${phaseId}`
+    return (
+      <div className="ng-ghostCard">
+        <div className="ng-ghostTitle">{title}</div>
+      </div>
+    )
+  }
+
+  async function persistMove(t){
+    const task = tasks.find(x => String(x.id) === String(t.id))
+    if(!task) return
+    const payload = {
+      personId: Number(t.personId),
+      assignedDays: Number(t.durationDays || task.durationDays || 1),
+      startDate: (t.start instanceof Date) ? t.start.toISOString() : t.start,
+    }
+    try{
+      await updatePhaseAssignment(Number(task.phaseId), Number(task.assignmentId || task.id), payload)
+      setTasks(prev => prev.map(x => String(x.id) === String(t.id) ? { ...x, personId: t.personId, start: t.start } : x))
+      setAssignmentsCache(prev => { 
+        const next = new Map(prev); 
+        const list = (next.get(Number(task.phaseId))||[]).map(a => a.id === Number(task.assignmentId||task.id) ? { ...a, personId: payload.personId, assignedDays: payload.assignedDays, startDate: payload.startDate } : a)
+        next.set(Number(task.phaseId), list); 
+        return next 
+      })
+    }catch(err){
+      console.error('update assignment error', err)
+    }
+  }
+
+  const onDragStart = (e) => setActiveDragId(String(e?.active?.id || ''))
+  async function onDragEnd(evt){
+    const id = String(evt?.active?.id || '')
+    if(id.startsWith('phase:')){
+      const phaseId = Number(id.split(':')[1])
+      const surface = document.querySelector('.ng-taskLayer')
+      if(!surface || !cols.length || !people.length) return
+      const rect = surface.getBoundingClientRect()
+      const px = pointerRef.current.x - rect.left
+      const py = pointerRef.current.y - rect.top
+      if(px < 0 || py < 0) return
+
+      const colIndex = Math.max(0, Math.round(px / colW))
+      const dpc = daysPerColumn(zoom)
+      const startDate = new Date(cols[0].start); startDate.setHours(0,0,0,0); startDate.setDate(startDate.getDate() + colIndex * dpc)
+
+      const laneIdx = Math.min(Math.max(Math.round(py / laneH), 0), Math.max(people.length - 1, 0))
+      const person = people[laneIdx]; if(!person) return
+
+      const phase = phaseIndex[String(phaseId)] || {}
+      const assignedDays = Number(phase.estimatedDays || phase.durationDays || phase.days || 5)
+
+      try{
+        const payload = { personId: Number(person.id), assignedDays, startDate: startDate.toISOString() }
+        const created = await createPhaseAssignment(phaseId, payload)
+        if(created && created.id != null){
+          setAssignmentsCache(prev => { const next = new Map(prev); const list = next.get(phaseId) || []; next.set(phaseId, [...list, { id: created.id, phaseId, personId: payload.personId, assignedDays: payload.assignedDays, startDate: payload.startDate }]); return next })
+          const title = phase.title || phase.name || `Phase ${phaseId}`
+          const color = phase.color || '#2563eb'
+          setTasks(prev => [...prev, { id: String(created.id), assignmentId: created.id, phaseId, personId: person.id, start: startDate, durationDays: assignedDays, title, color }])
+        }
+      }catch(err){
+        console.error('create assignment error', err)
+      }
+      setActiveDragId(null)
+      return
+    }
+    setActiveDragId(null)
+  }
+
   return (
-    <div className="ng-shell">
-      {/* Toolbar */}
-      <div className="ng-toolbar">
-        <div className="ng-pill">
-          <span className="ng-label">Zoom</span>
-          <select className="ng-select" value={zoom} onChange={e=>setZoom(e.target.value)}>
-            <option value="day">Daily</option>
-            <option value="week">Week</option>
-            <option value="2week">2 Weeks</option>
-          </select>
-        </div>
-
-        <div className="ng-pill">
-          <span className="ng-label">Start</span>
-          <input className="ng-input" type="month" value={startMonth} onChange={e=>setStartMonth(e.target.value)} />
-        </div>
-
-        <div className="ng-pill">
-          <span className="ng-label">Months</span>
-          <select className="ng-select" value={monthSpan} onChange={e=>setMonthSpan(Number(e.target.value))}>
-            {[6,9,12,15,18,24,36].map(n=><option key={n} value={n}>{n}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Left Sidebar (resizable) */}
-      <ResizableSidebar side="left" min={220} max={560} initial={320} storageKey="ng-left">
-        <div className="ng-left">
-          <div className="ng-person" style={{height:'var(--ng-headerH1)'}}>People</div>
-          <div className="ng-person" style={{height:'var(--ng-headerH2)'}}> </div>
-          <div className="people">
-            {demoPeople.map(p=> <div key={p.id} className="ng-person">{p.name}</div>)}
+    <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <div className="ng-shell">
+        <div className="ng-toolbar">
+          <button className="ng-btn" onClick={()=>{ setAssignmentsCache(new Map()); setTasks([]); }}>Clear cache</button>
+          <button className="ng-btn" onClick={()=>{ const openPhases = Object.keys(phaseIndex).map(Number); refreshAssignments(openPhases); }}>Refresh</button>
+          <div className="ng-pill">
+            <span className="ng-label">Zoom</span>
+            <select className="ng-select" value={zoom} onChange={e=>setZoom(e.target.value)}>
+              <option value="day">Daily</option>
+              <option value="week">Weekly</option>
+              <option value="bi">Bi-weekly</option>
+            </select>
+          </div>
+          <div className="ng-pill">
+            <span className="ng-label">Start</span>
+            <input className="ng-input" type="month" value={startMonth} onChange={e=>setStartMonth(e.target.value)} />
+          </div>
+          <div className="ng-pill">
+            <span className="ng-label">Months</span>
+            <select className="ng-select" value={monthSpan} onChange={e=>setMonthSpan(Number(e.target.value))}>
+              {[6,9,12,15,18,24,36].map(n=><option key={n} value={n}>{n}</option>)}
+            </select>
           </div>
         </div>
-      </ResizableSidebar>
 
-      {/* Grid area */}
-      <div className="ng-gridWrap">
-        <div className="ng-scroll">
-          {/* Body: left lanes + right background grid */}
-          <div className="ng-body">
-            <div className="ng-bodyLeft">
-              <div className="ng-leftHeaderSpacer" />
-              {/* Mirror the header height so body rows align */}
-              
-              {demoPeople.map(p => (
-                <div key={p.id} className="ng-person">{p.name}</div>
-              ))}
+        <ResizableSidebar side="left" min={240} max={560} initial={320} storageKey="ng-left">
+          <div className="ng-left">
+            <div className="ng-section">
+              <div className="ng-sectionTitle">Phases</div>
+              <PhaseSidebar onPhaseIndex={setPhaseIndex} onVisibilityChange={({visiblePhaseIds})=> refreshAssignments(visiblePhaseIds)} />
             </div>
+          </div>
+        </ResizableSidebar>
 
-            <div className="ng-bodyRight">
-              {/* Background grid columns */}
-              
-              
-              {/* Header rows (sticky) — now constrained to right grid */}
-              <div className="ng-header">
-                <div className="ng-headerRow1" style={{gridTemplateColumns:`repeat(${cols.length}, var(--ng-colW))`}}>
-                  {months.map(m => (
-                    <div key={m.key} className="ng-monthCell" style={{gridColumn:`span ${m.span}`}}>{m.label}</div>
-                  ))}
-                </div>
-                <div className="ng-headerRow2" style={{gridTemplateColumns:`repeat(${cols.length}, var(--ng-colW))`}}>
-                  {cols.map(c => (
-                    <div key={c.key} className="ng-colLabel">{c.label}</div>
-                  ))}
+        <div className="ng-gridWrap">
+          <div className="ng-scroll">
+            <div className="ng-body">
+              <div className="ng-bodyLeft">
+                <div className="ng-headerH1" />
+                <div className="ng-headerH2" />
+                <div className="people">
+                  {people.map(p => (<LaneRow key={p.id} person={p} />))}
                 </div>
               </div>
 
-<div className="ng-gridBg" style={{gridTemplateColumns:`repeat(${cols.length}, var(--ng-colW))`}}>
-                {cols.map(col => (
-                  <div key={col.key} className="ng-bgCol">
-                    {demoPeople.map(p => (
-                      <div key={p.id} className="ng-laneRow" />
-                    ))}
-                  </div>
-                ))}
-              </div>
+              <div className="ng-bodyRight">
+                <div className="ng-months" style={{gridTemplateColumns:`repeat(${months.reduce((s,m)=>s+m.span,0)}, var(--ng-colW))`}}>
+                  {months.map(m => (<div key={m.key} className="ng-month" style={{gridColumn:`span ${m.span}`}}>{m.label}</div>))}
+                </div>
 
-              {/* Task layer placeholder */}
-              <div className="ng-taskLayer">
-                {cols.length > 0 && <TodayMarker gridStart={cols[0].start} zoom={zoom} colW={colW} />}
-              <TaskLayer cols={cols} people={people} zoom={zoom} tasks={tasksEff} colWidth={colW}
-                onTaskUpdate={(t)=> setTasks(prev=> prev.map(x=> String(x.id)===String(t.id) ? { ...x, personId: t.personId, start: t.start } : x))} />
+                <div className="ng-cols" style={{gridTemplateColumns:`repeat(${cols.length}, var(--ng-colW))`}}>
+                  {cols.map(c => (<div key={c.key} className="ng-colHead"><span className="ng-colLabel">{c.label}</span></div>))}
+                </div>
+
+                <NonWorkLayer cols={cols} people={people} colW={colW} />
+
+                <div className="ng-gridBg" style={{gridTemplateColumns:`repeat(${cols.length}, var(--ng-colW))`}}>
+                  {cols.map(col => (
+                    <div key={col.key} className="ng-bgCol">
+                      {people.map(p => (<div key={p.id} className="ng-laneRow" />))}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="ng-taskLayer">
+                  {cols.length > 0 && <TodayMarker gridStart={cols[0].start} zoom={zoom} colW={colW} />}
+                  <TaskLayer cols={cols} people={people} zoom={zoom} tasks={tasks} colWidth={colW} onTaskUpdate={persistMove} />
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <DragOverlay>{renderGhost()}</DragOverlay>
+    </DndContext>
   )
 }

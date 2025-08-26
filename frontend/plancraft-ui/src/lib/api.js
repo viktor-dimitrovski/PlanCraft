@@ -146,6 +146,12 @@ export const unscheduleTask   = (taskId)      => apiDelete(`tasks/${taskId}`);
 export const deleteTask       = (taskId)      => apiDelete(`tasks/${taskId}`);
 
 /* =========================== ASSIGNMENTS =========================== */
+/* Phase-scoped assignment routes (aligned with server PhaseAssignmentRoutes) */
+export const listPhaseAssignments    = (phaseId)                 => apiGet(`phases/${phaseId}/assignments`);
+export const createPhaseAssignment   = (phaseId, a)             => apiPost(`phases/${phaseId}/assignments`, a);
+export const updatePhaseAssignment   = (phaseId, id, a)         => apiPut(`phases/${phaseId}/assignments/${id}`, a);
+export const deletePhaseAssignment   = (phaseId, id)            => apiDelete(`phases/${phaseId}/assignments/${id}`);
+
 
 export const fetchAssignments = ()            => apiGet('assignments');
 export const apiCreateAssignment = (a)        => apiPost('assignments', a);
