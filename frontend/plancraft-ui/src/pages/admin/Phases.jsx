@@ -194,16 +194,26 @@ export default function AdminPhases() {
     }
   }
 
-  async function onCreateOrUpdate(p) {
-    try {
-      if (p.id) await updatePhase(p.id, p);
-      else await createPhase(projectId, p);
-      await load();
-      setEditPhase(null);
-    } catch (e) {
-      alert(e.message);
+
+async function onCreateOrUpdate(p, opts = {}) {
+  try {
+    if (p.id) {
+      await updatePhase(p.id, p);
+    } else {
+      await createPhase(projectId, p);
     }
+    // помазно: освежи ги фазите, но не затворај ако бараме keepOpen
+    await load();
+
+    // ако е edit ИЛИ немаме keepOpen, тогаш затвори го попапот
+    if (p.id || !opts.keepOpen) {
+      setEditPhase(null);
+    }
+  } catch (e) {
+    alert(e.message);
   }
+}
+
 
   async function onDelete(phase) {
     if (!window.confirm(`Delete phase "${phase.title}"?`)) return;

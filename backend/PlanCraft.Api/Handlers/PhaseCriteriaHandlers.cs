@@ -27,9 +27,30 @@ public static class PhaseCriteriaHandlers
         return Results.Ok(found);
     }
 
+    public static async Task<IResult> UpdateByCriteriaId(PlanCraftDb db, int id, PhaseAcceptanceCriteria c)
+    {
+        var found = await db.PhaseAcceptanceCriteria.FirstOrDefaultAsync(x => x.Id == id);
+        if (found is null) return Results.NotFound();
+        found.Title = c.Title;
+        found.Description = c.Description;
+        found.Order = c.Order;
+        found.IsRequired = c.IsRequired;
+        await db.SaveChangesAsync();
+        return Results.Ok(found);
+    }
+
     public static async Task<IResult> Delete(PlanCraftDb db, int phaseId, int id)
     {
         var found = await db.PhaseAcceptanceCriteria.FirstOrDefaultAsync(x => x.Id == id && x.PhaseId == phaseId);
+        if (found is null) return Results.NotFound();
+        db.Remove(found);
+        await db.SaveChangesAsync();
+        return Results.NoContent();
+    }
+
+    public static async Task<IResult> DeleteByCriteriaId(PlanCraftDb db, int id)
+    {
+        var found = await db.PhaseAcceptanceCriteria.FindAsync(id);
         if (found is null) return Results.NotFound();
         db.Remove(found);
         await db.SaveChangesAsync();

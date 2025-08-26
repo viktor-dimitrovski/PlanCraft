@@ -6,7 +6,7 @@ import { fetchBanks, fetchProjects, getPhases } from '../../lib/api'
 // --- Lazy chunks (one file per section) ---
 const BanksSection    = React.lazy(() => import('./sections/BanksSection'))
 const ProjectsSection = React.lazy(() => import('./sections/ProjectsSection'))
-const PhasesSection   = React.lazy(() => import('./sections/PhasesSection'))
+// const PhasesSection   = React.lazy(() => import('./sections/PhasesSection'))
 const TasksSection    = React.lazy(() => import('./sections/TasksSection'))
 const UsersSection    = React.lazy(() => import('./sections/UsersSection'))
 const AdminPhases     = React.lazy(() => import('./Phases.jsx')) // NEW
@@ -15,7 +15,7 @@ const AdminPhases     = React.lazy(() => import('./Phases.jsx')) // NEW
 const preload = {
   banks:    () => import('./sections/BanksSection'),
   projects: () => import('./sections/ProjectsSection'),
-  phases:   () => import('./sections/PhasesSection'),
+  // phases:   () => import('./sections/PhasesSection'),
   tasks:    () => import('./sections/TasksSection'),
   users:    () => import('./sections/UsersSection'),
   adminPhases:  () => import('./Phases.jsx'), // NEW
@@ -93,11 +93,11 @@ export default function Management() {
                 onMouseEnter={preload.projects} onFocus={preload.projects}
                 onClick={()=>setTab('projects')}
               >Projects</button>
-              <button
+              {/* <button
                 className={`tabBtn ${tab==='phases'?'active':''}`}
                 onMouseEnter={preload.phases} onFocus={preload.phases}
                 onClick={()=>setTab('phases')}
-              >Phases</button>
+              >Phases</button> */}
               {/* NEW */}
               <button
                 className={`tabBtn ${tab==='adminPhases'?'active':''}`}
@@ -135,11 +135,11 @@ export default function Management() {
         )}
 
 
-        {tab==='phases' && (
+        {/* {tab==='phases' && (
           <Suspense fallback={<LoadingCard label="Loading Phases…" />}>
             <PhasesSection onChange={refreshAll} />
           </Suspense>
-        )}
+        )} */}
 
         {/* NEW */}
         {tab==='adminPhases' && (

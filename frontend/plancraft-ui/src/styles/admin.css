@@ -148,4 +148,14 @@
   .rowActions { gap: 6px; }
 }
 
+/*==================================================================*/
+/* BanksSection */
+/*==================================================================*/
+/* Scoped во admin картичката за банки */
+.adminCard .colorPickerWrap{ display:flex; align-items:center; gap:8px; }
+.adminCard .colorPickerWrap input[type="color"]{
+  width:36px; height:36px; padding:0;
+  border:1px solid #e5e7eb; border-radius:8px; background:transparent;
+}
+.adminCard .colorPickerWrap .hexInput{ width:110px; }
 
