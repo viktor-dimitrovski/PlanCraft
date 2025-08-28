@@ -1,3 +1,32 @@
+/**
+ * TaskLayer.jsx
+ *
+ * 1) Purpose (functional):
+ *    Renders and manages all task cards on the scheduling grid. It computes each card's
+ *    position/size from the grid columns (time) and people (lanes), lets users drag cards
+ *    to reschedule (change start date) or reassign (change person), and provides a compact
+ *    tooltip + keyboard affordances (Esc deselect, Del remove).
+ *
+ * 2) Developer overview:
+ *    - Props: { cols, people, zoom, tasks, colWidth, onTaskUpdate }
+ *      * cols: array of time columns (each with .start). people: lane order. zoom: day/week/2w.
+ *      * tasks: [{ id, personId, start: Date, durationDays, title, color }]
+ *      * onTaskUpdate({ id, personId, start, startDate, durationDays, title, color }) is called on drop.
+ *    - Layout: computeLayout() converts tasks -> absolute left/top/width (px) using col width and lane height.
+ *      It also flags cards overlapping non-work days via dayStatus().
+ *    - DnD: useDndMonitor listens to drag lifecycle; DraggableCard uses useDraggable per card.
+ *      We tag drags with data.kind='task' and include the card data. This makes drop targets
+ *      and higher-level handlers consistent with phase drags (which use kind='phase').
+ *    - Styling: Cards expose CSS variable `--ng-accent` based on `card.color` so global CSS
+ *      (e.g. .ng-card { border-left: 3px solid var(--ng-accent, #2563eb); }) can render a bank-colored accent.
+ *      We also keep borderLeftColor inline as a safe fallback.
+ *    - LocalEdits: stores temporary start/personId while dragging when onTaskUpdate is not supplied.
+ *      HiddenIds: demo delete. Lane height is synced from CSS var --ng-laneH.
+ *
+ *    Extension points:
+ *      - Change border rendering centrally via CSS using --ng-accent.
+ *      - Add more drag metadata in useDraggable({ data: {...} }) if consumers need it.
+ */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useDraggable, useDndMonitor } from '@dnd-kit/core'
@@ -165,12 +194,13 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
 
   // Draggable card — composes base CSS transform with drag transform so it doesn't jump
   function DraggableCard({ card }){
-    const {attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({ id: card.id })
+    const {attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({ id: card.id, data: { kind: 'task', taskId: card.id, task: card } })
     const dragT = CSS.Translate.toString(transform) // translate3d(x,y,0)
     const style = {
       left: card.left,
       top: card.top,
       width: card.width,
+      "--ng-accent": card.color || '#2563eb',
       borderLeftColor: card.color || '#2563eb',
       transform: transform
         ? `translateY(calc(-50% + var(--ng-card-yshift))) ${dragT}`

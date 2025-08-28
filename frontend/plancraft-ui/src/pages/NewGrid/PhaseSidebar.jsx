@@ -4,21 +4,20 @@ import { fetchBanks, fetchProjects, getPhases } from '../../lib/api'
 
 function PhaseItem({ phase, totalDays = 0, remainingDays = 0 }){
   const id = `phase:${phase.id}`
-  const {attributes, listeners, setNodeRef, isDragging} = useDraggable({ id })
+  const {attributes, listeners, setNodeRef, isDragging} = useDraggable({
+    id,
+    data: { kind: 'phase', phase }
+  })
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
       className={`phaseItem${isDragging ? " dragging" : ""} ${remainingDays <= 0 ? "depleted" : ""}`}
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
       title={phase.title || phase.name}
     >
       <span className="phaseTitle">{phase.title || phase.name}</span>
-      <span
-        className="phaseDays"
-        style={{ marginLeft: 8, fontSize: 12, opacity: 0.8, whiteSpace: "nowrap", flexShrink: 0 }}
-      >
+      <span className="phaseDays">
         {totalDays > 0 ? `${remainingDays}/${totalDays}d` : `${remainingDays}d`}
       </span>
     </div>
@@ -56,15 +55,25 @@ export default function PhaseSidebar({ onPhaseIndex, onVisibilityChange, remaini
     return () => { cancelled = true }
   }, [projects])
 
+  // Expose phase index (enriched with bank color) to parent
   useEffect(() => {
-    const map = {}
-    for(const pr of projects){
-      for(const ph of (phasesByProject[pr.id] || [])){
-        map[String(ph.id)] = ph
+    if (typeof onPhaseIndex !== 'function') return
+    const projMap = {}
+    for (const p of projects) projMap[String(p.id)] = p
+    const bankMap = {}
+    for (const b of banks) bankMap[String(b.id)] = b
+
+    const idx = {}
+    for (const pr of projects) {
+      for (const ph of (phasesByProject[pr.id] || [])) {
+        const project = projMap[String(pr.id)]
+        const bank = project ? (bankMap[String(project.bankId ?? project.clientId ?? '')] || project.bank) : null
+        const color = (bank && bank.color) || ph.color || "#2563eb"
+        idx[String(ph.id)] = { ...ph, color }
       }
     }
-    if(typeof onPhaseIndex === 'function') onPhaseIndex(map)
-  }, [projects, phasesByProject, onPhaseIndex])
+    onPhaseIndex(idx)
+  }, [banks, projects, phasesByProject, onPhaseIndex])
 
   const projectsByBank = useMemo(() => {
     const by = {}
@@ -76,6 +85,7 @@ export default function PhaseSidebar({ onPhaseIndex, onVisibilityChange, remaini
     return by
   }, [projects])
 
+  // Emit visible phases (by opened projects) to parent
   useEffect(() => {
     const visiblePhaseIds = []
     for(const [pid, isOpen] of Object.entries(openProj)){
@@ -107,22 +117,22 @@ export default function PhaseSidebar({ onPhaseIndex, onVisibilityChange, remaini
                   {openProj[pr.id] && (
                     <div className="phaseList">
                       {(phasesByProject[pr.id]||[])
-                      .filter(ph => {
-                        const total = Number(ph.estimatedDays || ph.durationDays || ph.days || 0) || 0;
-                        const rem = (remainingByPhase && remainingByPhase[String(ph.id)] != null)
-                          ? Number(remainingByPhase[String(ph.id)])
-                          : total;
-                        return !hideFullyAssigned || rem > 0;
-                      })
-                      .map(ph => {
-                        const total = Number(ph.estimatedDays || ph.durationDays || ph.days || 0) || 0;
-                        const rem = (remainingByPhase && remainingByPhase[String(ph.id)] != null)
-                          ? Number(remainingByPhase[String(ph.id)])
-                          : total;
-                        return (
-                          <PhaseItem key={ph.id} phase={ph} totalDays={total} remainingDays={rem} />
-                        );
-                      })}
+                        .filter(ph => {
+                          const total = Number(ph.estimatedDays || ph.durationDays || ph.days || 0) || 0
+                          const rem = (remainingByPhase && remainingByPhase[String(ph.id)] != null)
+                            ? Number(remainingByPhase[String(ph.id)])
+                            : total
+                          return !hideFullyAssigned || rem > 0
+                        })
+                        .map(ph => {
+                          const total = Number(ph.estimatedDays || ph.durationDays || ph.days || 0) || 0
+                          const rem = (remainingByPhase && remainingByPhase[String(ph.id)] != null)
+                            ? Number(remainingByPhase[String(ph.id)])
+                            : total
+                          return (
+                            <PhaseItem key={ph.id} phase={ph} totalDays={total} remainingDays={rem} />
+                          )
+                        })}
                       {!((phasesByProject[pr.id]||[]).length) && <div className="ng-empty">No phases</div>}
                     </div>
                   )}

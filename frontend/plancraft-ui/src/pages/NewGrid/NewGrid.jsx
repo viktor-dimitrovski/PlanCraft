@@ -1,3 +1,19 @@
+/**
+ * NewGrid.jsx
+ *
+ * 1) Purpose (functional):
+ *    Timeline planning grid for assigning project phases to people across a calendar.
+ *    Supports dragging from sidebar (phases) onto the grid and moving existing cards within the grid,
+ *    shows a drop placeholder, and persists assignments.
+ *
+ * 2) Developer summary:
+ *    - Renders calendar columns, people lanes, and a task layer with draggable cards (@dnd-kit).
+ *    - Uses `PhaseSidebar` to source phases and lazy-loads assignments per visible phase.
+ *    - Pointer-based math (vs droppable cells) determines target lane/column for both new and moved cards.
+ *    - `createPhaseAssignment` for new drops; `updatePhaseAssignment` for moves.
+ *    - This revision enables drop preview and proper onDragEnd handling for `card:` drags too.
+ */
+
 import React, { useMemo, useRef, useState, useEffect } from "react";
 import ResizableSidebar from "../../components/ResizableSidebar";
 import PhaseSidebar from "./PhaseSidebar";
@@ -76,36 +92,36 @@ export default function NewGrid() {
 
   const [tasks, setTasks] = useState([]);
   const [assignmentsCache, setAssignmentsCache] = useState(() => new Map());
-  
-// 1) state
-const [phaseRemaining, setPhaseRemaining] = useState({});
 
-// 2) топ-левел функција (без hooks внатре)
-function recomputeRemaining(mapLike) {
-  const res = {};
-  // total по фаза (од phaseIndex)
-  for (const [id, ph] of Object.entries(phaseIndex || {})) {
-    const total = Number(ph.estimatedDays || ph.durationDays || ph.days || 0) || 0;
-    res[Number(id)] = total;
+  const [isPhaseDrag, setIsPhaseDrag] = useState(false);
+  // 1) state
+  const [phaseRemaining, setPhaseRemaining] = useState({});
+
+  // 2) топ-левел функција (без hooks внатре)
+  function recomputeRemaining(mapLike) {
+    const res = {};
+    // total по фаза (од phaseIndex)
+    for (const [id, ph] of Object.entries(phaseIndex || {})) {
+      const total = Number(ph.estimatedDays || ph.durationDays || ph.days || 0) || 0;
+      res[Number(id)] = total;
+    }
+    // одземај ги доделените денови од assignmentsCache
+    const m = mapLike && typeof mapLike.forEach === 'function' ? mapLike : assignmentsCache;
+    if (m && typeof m.forEach === 'function') {
+      m.forEach((list, pid) => {
+        const used = (list || []).reduce((s, a) => s + Number(a.assignedDays || 0), 0);
+        res[Number(pid)] = Math.max(0, (res[Number(pid)] ?? 0) - used);
+      });
+    }
+    setPhaseRemaining(res);
   }
-  // одземај ги доделените денови од assignmentsCache
-  const m = mapLike && typeof mapLike.forEach === 'function' ? mapLike : assignmentsCache;
-  if (m && typeof m.forEach === 'function') {
-    m.forEach((list, pid) => {
-      const used = (list || []).reduce((s, a) => s + Number(a.assignedDays || 0), 0);
-      res[Number(pid)] = Math.max(0, (res[Number(pid)] ?? 0) - used);
-    });
-  }
-  setPhaseRemaining(res);
-}
 
-// 3) ефект кој се тригерира кога ќе се смени assignmentsCache/phaseIndex
-useEffect(() => {
-  try { recomputeRemaining(); } catch {}
-}, [assignmentsCache, phaseIndex]);
+  // 3) ефект кој се тригерира кога ќе се смени assignmentsCache/phaseIndex
+  useEffect(() => {
+    try { recomputeRemaining(); } catch {}
+  }, [assignmentsCache, phaseIndex]);
 
-
-const inFlight = useRef(new Set());
+  const inFlight = useRef(new Set());
 
   const { cols, months } = useMemo(
     () => buildMonthSegments(from, to, zoom),
@@ -326,7 +342,16 @@ const inFlight = useRef(new Set());
   const onDragStart = (e) => {
     const id = String(e?.active?.id || "");
     setActiveDragId(id);
-    setDropPreview(computeDropPreview(id));
+    const kind = e?.active?.data?.current?.kind;
+    const phaseDrag = kind === 'phase' || id.startsWith('phase:');
+    setIsPhaseDrag(phaseDrag);
+
+    // NEW: enable preview for both phase and card drags
+    if (id.startsWith('phase:') || id.startsWith('card:')) {
+      setDropPreview(computeDropPreview(id));
+    } else {
+      setDropPreview(null);
+    }
   };
 
   // helper used by split prompt
@@ -381,14 +406,27 @@ const inFlight = useRef(new Set());
       console.error("create assignment error", err);
     }
   }
+
+  const onDragMove = (e) => {
+    const id = String(e?.active?.id || "");
+    // NEW: keep preview live for both phase and card drags
+    if (id.startsWith('phase:') || id.startsWith('card:')) {
+      setDropPreview(computeDropPreview(id));
+    } else {
+      setDropPreview(null);
+    }
+  };
+
   async function onDragEnd(evt) {
     const id = String(evt?.active?.id || "");
-    if (id.startsWith("phase:")) {
-      const phaseId = Number(id.split(":")[1]);
+
+    // === CASE 1: Moving an existing card within grid (Grid -> Grid) ===
+    if (id.startsWith("card:")) {
       const surface = document.querySelector(".ng-taskLayer");
       if (!surface || !cols.length || !people.length) {
         setActiveDragId(null);
         setDropPreview(null);
+        setIsPhaseDrag(false);
         return;
       }
       const rect = surface.getBoundingClientRect();
@@ -397,6 +435,57 @@ const inFlight = useRef(new Set());
       if (px < 0 || py < 0) {
         setActiveDragId(null);
         setDropPreview(null);
+        setIsPhaseDrag(false);
+        return;
+      }
+
+      const colIndex = Math.max(0, Math.round(px / colW));
+      const dpc = daysPerColumn(zoom);
+      const startDate = new Date(cols[0].start);
+      startDate.setHours(0, 0, 0, 0);
+      startDate.setDate(startDate.getDate() + colIndex * dpc);
+
+      const laneIdx = Math.min(
+        Math.max(Math.floor(py / laneH), 0),
+        Math.max(people.length - 1, 0)
+      );
+      const person = people[laneIdx];
+      if (person) {
+        const cardId = id.replace("card:", "");
+        const t = tasks.find((x) => String(x.id) === cardId);
+        if (t) {
+          await persistMove({
+            id: t.id,
+            personId: person.id,
+            start: startDate,
+            durationDays: t.durationDays,
+          });
+        }
+      }
+
+      setActiveDragId(null);
+      setDropPreview(null);
+      setIsPhaseDrag(false);
+      return;
+    }
+
+    // === CASE 2: Dropping a phase from sidebar (Phase -> Grid) ===
+    if (id.startsWith("phase:")) {
+      const phaseId = Number(id.split(":")[1]);
+      const surface = document.querySelector(".ng-taskLayer");
+      if (!surface || !cols.length || !people.length) {
+        setActiveDragId(null);
+        setDropPreview(null);
+        setIsPhaseDrag(false);
+        return;
+      }
+      const rect = surface.getBoundingClientRect();
+      const px = pointerRef.current.x - rect.left;
+      const py = pointerRef.current.y - rect.top;
+      if (px < 0 || py < 0) {
+        setActiveDragId(null);
+        setDropPreview(null);
+        setIsPhaseDrag(false);
         return;
       }
 
@@ -414,6 +503,7 @@ const inFlight = useRef(new Set());
       if (!person) {
         setActiveDragId(null);
         setDropPreview(null);
+        setIsPhaseDrag(false);
         return;
       }
 
@@ -434,19 +524,22 @@ const inFlight = useRef(new Set());
       });
       setActiveDragId(null);
       setDropPreview(null);
+      setIsPhaseDrag(false);
       return;
     }
+
+    // default cleanup
     setActiveDragId(null);
+    setDropPreview(null);
+    setIsPhaseDrag(false);
   }
 
   return (
     <DndContext
       sensors={sensors}
       onDragStart={onDragStart}
-      onDragMove={(e) =>
-        setDropPreview(computeDropPreview(String(e?.active?.id || "")))
-      }
-      onDragCancel={() => setDropPreview(null)}
+      onDragMove={onDragMove}
+      onDragCancel={() => { setDropPreview(null); setIsPhaseDrag(false); }}
       onDragEnd={onDragEnd}
     >
       <div className="ng-shell">
@@ -608,6 +701,7 @@ const inFlight = useRef(new Set());
                     onTaskUpdate={persistMove}
                   />
 
+                  {/* NEW: show preview for both phase and card drags */}
                   {dropPreview && (
                     <div
                       aria-hidden="true"

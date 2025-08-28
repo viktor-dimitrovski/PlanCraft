@@ -148,3 +148,73 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
 
 /* NewGrid override: force white canvas */
 .ng-scroll, .ng-body, .ng-shell { background: #fff; }
+
+/* ===== PhaseSidebar layout (title + right-aligned badge) ===== */
+.phaseItem{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:6px 8px;
+  border-radius:8px;
+}
+.phaseItem.dragging{ opacity:.85; }
+.phaseItem.depleted{ opacity:.55; }
+.phaseItem .phaseTitle{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.phaseItem .phaseDays{
+  font-size:12px;
+  opacity:.8;
+  white-space:nowrap;
+  flex-shrink:0;
+}
+
+/* ===== Sidebar hierarchy clarity ===== */
+.ng-phases .bankBtn{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  width:100%;
+  font-weight:600;
+  background:#f8fafc;
+  padding:8px 10px;
+  border-radius:10px;
+}
+.ng-phases .projBtn{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  width:100%;
+  font-weight:500;
+  background:#f9fafb;
+  padding:6px 10px;
+  border-radius:8px;
+}
+.ng-phases .dot{
+  width:10px;
+  height:10px;
+  border-radius:9999px;
+  display:inline-block;
+}
+.ng-phases .count{
+  background:#e2e8f0;
+  border-radius:9999px;
+  padding:0 6px;
+  font-size:12px;
+}
+.ng-phases .phaseList{
+  border-left:2px solid rgba(2,6,23,.06);
+  padding-left:10px;
+  margin-left:6px;
+}
+
+/* ===== Grid lines slightly stronger ===== */
+.ng-bgCol{ border-right:1px solid rgba(2,6,23,.16); }
+.ng-laneRow{ border-bottom:1px solid rgba(2,6,23,.16); }
+
+/* ===== Card bank accent (expects inline --ng-accent from task.color) ===== */
+.ng-card{ border-left:3px solid var(--ng-accent, #2563eb); }
