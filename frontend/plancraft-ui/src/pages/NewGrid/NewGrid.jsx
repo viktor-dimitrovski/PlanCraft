@@ -57,6 +57,8 @@ export default function NewGrid() {
   });
   const [monthSpan, setMonthSpan] = useState(12);
 
+  const [cardStyle, setCardStyle] = useState('standard');
+
   const { from, to } = useMemo(() => {
     const [yy, mm] = startMonth.split("-").map(Number);
     const from = new Date(yy, (mm || 1) - 1, 1);
@@ -129,6 +131,16 @@ export default function NewGrid() {
       recomputeRemaining();
     } catch {}
   }, [assignmentsCache, phaseIndex]);
+
+
+// Auto-load ALL assignments when phases are available (no need to expand sidebar)
+useEffect(() => {
+  const ids = Object.keys(phaseIndex || {}).map(Number)
+  if (ids.length) {
+    refreshAssignments(ids)
+  }
+}, [phaseIndex])
+
 
   const inFlight = useRef(new Set());
 
@@ -272,9 +284,13 @@ const dragBiasRef = useRef({ x: 0, y: 0 }); // calibrates overlay center vs raw 
     if (!activeDragId || !activeDragId.startsWith("phase:")) return null;
     const phaseId = Number(activeDragId.split(":")[1]);
     const phase = phaseIndex[String(phaseId)] || {};
-    const title = phase.title || phase.name || `Phase ${phaseId}`;
+    const dpc = daysPerColumn(zoom);
+    const days = Number(phase.estimatedDays || phase.durationDays || phase.days || 5);
+    const spanCols = Math.max(1, Math.ceil(days / dpc));
+    const widthPx = spanCols * colW;
+    const title = (phase.bankPrefix + ':') + (phase.title || phase.name || `Phase ${phaseId}`);
     return (
-      <div className="ng-ghostCard">
+      <div className="ng-ghostCard" style={{ width: widthPx }}>
         <div className="ng-ghostTitle">{title}</div>
       </div>
     );
@@ -547,9 +563,11 @@ async function onDragEnd(evt) {
       if (!person) return;
 
       const phase = phaseIndex[String(phaseId)] || {};
-      const maxDays = Number(
-        phase.estimatedDays || phase.durationDays || phase.days || 1
-      );
+      const totalDays = Number(phase.estimatedDays || phase.durationDays || phase.days || 1);
+      const remainingDays = (phaseRemaining && phaseRemaining[String(phaseId)] != null)
+        ? Number(phaseRemaining[String(phaseId)])
+        : totalDays;
+      const maxDays = Math.max(1, remainingDays);
 
       setSplitDays(maxDays);
       setSplitPrompt({
@@ -571,6 +589,18 @@ async function onDragEnd(evt) {
 }
 
 
+  const onDeleteAssignment = (assignmentId) => {
+    setTasks(prev => prev.filter(x => String(x.id) !== String(assignmentId)));
+    setAssignmentsCache(prev => {
+      const next = new Map(prev);
+      next.forEach((list, pid) => {
+        next.set(pid, (list || []).filter(a => String(a.id) !== String(assignmentId)));
+      });
+      return next;
+    });
+  };
+
+
   return (
     <DndContext
       sensors={sensors}
@@ -582,7 +612,7 @@ async function onDragEnd(evt) {
       }}
       onDragEnd={onDragEnd}
     >
-      <div className="ng-shell">
+      <div className={`ng-shell ${cardStyle === "compact" ? "ng-style-compact" : "ng-style-standard"}`}>
         <div className="ng-toolbar">
           <button
             className="ng-btn"
@@ -637,6 +667,15 @@ async function onDragEnd(evt) {
               ))}
             </select>
           </div>
+        
+	<div className="ng-pill">
+	  <span className="ng-label">Card style</span>
+	  <select className="ng-select" value={cardStyle} onChange={e=>setCardStyle(e.target.value)}>
+	    <option value="standard">Standard</option>
+	    <option value="compact">Compact</option>
+	  </select>
+	</div>
+
         </div>
 
         <ResizableSidebar
@@ -740,6 +779,7 @@ async function onDragEnd(evt) {
                     zoom={zoom}
                     tasks={tasks}
                     colWidth={colW}
+                    onDeleteAssignment={onDeleteAssignment}
                   />
 
                   {dropPreview && (

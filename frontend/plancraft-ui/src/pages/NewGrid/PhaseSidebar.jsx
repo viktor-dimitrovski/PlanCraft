@@ -69,7 +69,9 @@ export default function PhaseSidebar({ onPhaseIndex, onVisibilityChange, remaini
         const project = projMap[String(pr.id)]
         const bank = project ? (bankMap[String(project.bankId ?? project.clientId ?? '')] || project.bank) : null
         const color = (bank && bank.color) || ph.color || "#2563eb"
-        idx[String(ph.id)] = { ...ph, color }
+        const rawName = (bank && (bank.code || bank.shortCode || bank.abbr || bank.name)) || "bank"
+        const bankPrefix = String(rawName).toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0,8) || 'bank'
+        idx[String(ph.id)] = { ...ph, color, bankPrefix }
       }
     }
     onPhaseIndex(idx)

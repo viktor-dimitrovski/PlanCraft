@@ -74,7 +74,7 @@ function computeLayout({ cols, people, zoom, tasks, colW, laneH }){
   })
 }
 
-export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, onTaskUpdate }){
+export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, onTaskUpdate, onDeleteAssignment }){
   const rootRef = useRef(null)
   const [laneH, setLaneH] = useState(56)
   const [selectedId, setSelectedId] = useState(null)
@@ -119,6 +119,7 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
         setSelectedId(null); setTip(null)
       }else if((e.key === 'Delete' || e.key === 'Backspace') && selectedId){
         setHiddenIds(prev => { const next = new Set(prev); next.add(String(selectedId)); return next })
+        try { if (typeof onDeleteAssignment === 'function') onDeleteAssignment(String(selectedId)) } catch {}
         setSelectedId(null); setTip(null)
       }
     }
