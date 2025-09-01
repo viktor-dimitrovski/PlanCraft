@@ -85,31 +85,38 @@ export default function NewGrid() {
   }, []);
 
   const [phaseIndex, setPhaseIndex] = useState({});
-
   const [dropPreview, setDropPreview] = useState(null);
   const [splitPrompt, setSplitPrompt] = useState(null);
   const [splitDays, setSplitDays] = useState(0);
-
   const [tasks, setTasks] = useState([]);
   const [assignmentsCache, setAssignmentsCache] = useState(() => new Map());
-
   const [isPhaseDrag, setIsPhaseDrag] = useState(false);
   // 1) state
   const [phaseRemaining, setPhaseRemaining] = useState({});
+
+
+
 
   // 2) топ-левел функција (без hooks внатре)
   function recomputeRemaining(mapLike) {
     const res = {};
     // total по фаза (од phaseIndex)
     for (const [id, ph] of Object.entries(phaseIndex || {})) {
-      const total = Number(ph.estimatedDays || ph.durationDays || ph.days || 0) || 0;
+      const total =
+        Number(ph.estimatedDays || ph.durationDays || ph.days || 0) || 0;
       res[Number(id)] = total;
     }
     // одземај ги доделените денови од assignmentsCache
-    const m = mapLike && typeof mapLike.forEach === 'function' ? mapLike : assignmentsCache;
-    if (m && typeof m.forEach === 'function') {
+    const m =
+      mapLike && typeof mapLike.forEach === "function"
+        ? mapLike
+        : assignmentsCache;
+    if (m && typeof m.forEach === "function") {
       m.forEach((list, pid) => {
-        const used = (list || []).reduce((s, a) => s + Number(a.assignedDays || 0), 0);
+        const used = (list || []).reduce(
+          (s, a) => s + Number(a.assignedDays || 0),
+          0
+        );
         res[Number(pid)] = Math.max(0, (res[Number(pid)] ?? 0) - used);
       });
     }
@@ -118,7 +125,9 @@ export default function NewGrid() {
 
   // 3) ефект кој се тригерира кога ќе се смени assignmentsCache/phaseIndex
   useEffect(() => {
-    try { recomputeRemaining(); } catch {}
+    try {
+      recomputeRemaining();
+    } catch {}
   }, [assignmentsCache, phaseIndex]);
 
   const inFlight = useRef(new Set());
@@ -127,8 +136,11 @@ export default function NewGrid() {
     () => buildMonthSegments(from, to, zoom),
     [from, to, zoom]
   );
-
+  // Track pointer so computeDropPreview can use exact cursor position
   const pointerRef = useRef({ x: 0, y: 0 });
+const dragBiasRef = useRef({ x: 0, y: 0 }); // calibrates overlay center vs raw pointer
+
+  // Optional: keep it updated during the drag (helps when dnd-kit uses an overlay)
   useEffect(() => {
     const onMove = (ev) => {
       pointerRef.current = { x: ev.clientX, y: ev.clientY };
@@ -136,6 +148,22 @@ export default function NewGrid() {
     window.addEventListener("pointermove", onMove, { passive: true });
     return () => window.removeEventListener("pointermove", onMove);
   }, []);
+  // Use dnd-kit rect data (when available) to sync pointer exactly at drag start/move
+  function updatePointerFromEvent(e) {
+    try {
+      const r =
+        e?.active?.rect?.current?.translated ||
+        e?.active?.rect?.current?.initial;
+      if (r) {
+        pointerRef.current = {
+          x: r.left + r.width / 2,
+          y: r.top + r.height / 2,
+        };
+      }
+    } catch {
+      /* no-op */
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -293,67 +321,102 @@ export default function NewGrid() {
     }
   }
 
-  function computeDropPreview(activeId) {
-    const surface = document.querySelector(".ng-taskLayer");
-    if (!surface || !cols.length || !people.length) return null;
+function computeDropPreview(activeId) {
+  // 1) Same surface and pointer
+  const surface = document.querySelector(".ng-taskLayer");
+  if (!surface || !cols.length || !people.length) return null;
 
-    const rect = surface.getBoundingClientRect();
-    const px = pointerRef.current.x - rect.left;
-    const py = pointerRef.current.y - rect.top;
-    if (px < 0 || py < 0) return null;
+  const rect = surface.getBoundingClientRect();
+  const px = (pointerRef.current.x + (dragBiasRef?.current?.x || 0)) - rect.left;
+  const py = (pointerRef.current.y + (dragBiasRef?.current?.y || 0)) - rect.top;
+  if (px < 0 || py < 0) return null;
 
-    const dpc = zoom === "day" ? 1 : zoom === "week" ? 7 : 14;
-    const colIndex = Math.max(0, Math.round(px / colW));
-    const laneIdx = Math.min(
-      Math.max(Math.floor(py / laneH), 0),
-      Math.max(people.length - 1, 0)
-    );
+  // 2) Snap (keep your original policy)
+  //    - columns: floor (must cross the boundary)
+  //    - lanes:   round (half-threshold)
+  const dpc = (typeof daysPerColumn === "function")
+    ? daysPerColumn(zoom)
+    : (zoom === "day" ? 1 : (zoom === "week" ? 7 : 14));
 
-    let durationDays = 5;
-    if (activeId && typeof activeId === "string") {
-      if (activeId.startsWith("phase:")) {
-        const phaseId = Number(activeId.split(":")[1]);
-        const phase = phaseIndex[String(phaseId)] || {};
-        durationDays = Number(
-          phase.estimatedDays || phase.durationDays || phase.days || 5
-        );
-      } else if (activeId.startsWith("card:")) {
-        const t = tasks.find(
-          (x) =>
-            `card:${x.id}` === activeId ||
-            String(x.id) === activeId.replace("card:", "")
-        );
-        if (t) durationDays = Number(t.durationDays || 1);
-      }
+  const colIndex = Math.max(0, Math.floor(px / colW));
+  const laneIdx  = Math.min(
+    Math.max(Math.round(py / laneH), 0),
+    Math.max(people.length - 1, 0)
+  );
+
+  // 3) Duration -> whole columns -> width
+  let durationDays = 5;
+  if (activeId && typeof activeId === "string") {
+    if (activeId.startsWith("phase:")) {
+      const phaseId = Number(activeId.split(":")[1]);
+      const phase = phaseIndex[String(phaseId)] || {};
+      durationDays = Number(phase.estimatedDays || phase.durationDays || phase.days || 5);
+    } else if (activeId.startsWith("assignment:")) {
+      const aid = activeId.replace("assignment:", "");
+      const t = tasks.find(x => `assignment:${x.id}` === activeId || String(x.id) === aid);
+      if (t) durationDays = Number(t.durationDays || 1);
     }
-
-    const workPerCol = zoom === "day" ? 1 : zoom === "week" ? 5 : 10;
-    const widthPx = (durationDays / workPerCol) * colW;
-    return {
-      left: colIndex * colW,
-      top: laneIdx * laneH + 6,
-      width: widthPx,
-      height: laneH - 12,
-      laneIdx,
-      colIndex,
-    };
   }
 
+  const spanCols = Math.max(1, Math.ceil(durationDays / dpc));
+  const widthPx  = spanCols * colW;
+
+  // 4) Return preview box in the same coordinate system as TaskLayer
+  return {
+    left:   colIndex * colW,
+    top:    laneIdx  * laneH + 6,
+    width:  widthPx,
+    height: laneH - 12,
+    laneIdx,
+    colIndex,
+  };
+}
+
+
+  const isPhaseId = (id, e) =>
+    e?.active?.data?.current?.kind === 'phase' ||
+    (typeof id === 'string' && id.startsWith('phase:'));
+
+  const isAssignmentId = (id, e) =>
+    e?.active?.data?.current?.kind === "assignment" ||
+    (typeof id === "string" && id.startsWith("assignment:"));
+
   const onDragStart = (e) => {
+    
+    try {
+      const r = e?.active?.rect?.current?.translated || e?.active?.rect?.current?.initial;
+      if (r && pointerRef?.current) {
+        const centerX = r.left + r.width / 2;
+        const centerY = r.top + r.height / 2;
+        dragBiasRef.current.x = centerX - pointerRef.current.x;
+        dragBiasRef.current.y = centerY - pointerRef.current.y;
+      } else {
+        dragBiasRef.current.x = 0; dragBiasRef.current.y = 0;
+      }
+    } catch { dragBiasRef.current.x = 0; dragBiasRef.current.y = 0; }
+if (typeof updatePointerFromEvent === "function") updatePointerFromEvent(e);
     const id = String(e?.active?.id || "");
     setActiveDragId(id);
-    const kind = e?.active?.data?.current?.kind;
-    const phaseDrag = kind === 'phase' || id.startsWith('phase:');
-    setIsPhaseDrag(phaseDrag);
+
+    // Use the unified helpers (no 'card' anywhere)
+    const isPhase = isPhaseId(id, e);
+    const isAssignment = isAssignmentId(id, e);
+
+    // Keep this state if you use it later for split/create UI
+    setIsPhaseDrag(isPhase);
 
     // NEW: enable preview for both phase and card drags
-    if (id.startsWith('phase:') || id.startsWith('card:')) {
+
+    const show = isPhaseId(id, e) || isAssignmentId(id, e);
+   if (show) {
       setDropPreview(computeDropPreview(id));
     } else {
       setDropPreview(null);
     }
   };
 
+// always clear preview if drag cancels
+const onDragCancel = () => setDropPreview(null);
   // helper used by split prompt
   async function onCreatePhaseAssignment({
     phaseId,
@@ -407,105 +470,80 @@ export default function NewGrid() {
     }
   }
 
-  const onDragMove = (e) => {
-    const id = String(e?.active?.id || "");
-    // NEW: keep preview live for both phase and card drags
-    if (id.startsWith('phase:') || id.startsWith('card:')) {
-      setDropPreview(computeDropPreview(id));
-    } else {
-      setDropPreview(null);
-    }
-  };
+const onDragMove = (e) => {
+  if (typeof updatePointerFromEvent === "function") updatePointerFromEvent(e);
+  try {
+    const sc = document.querySelector(".ng-scroll");
+    if (sc && typeof window.applyAutoScroll === "function")
+      window.applyAutoScroll(sc, pointerRef.current, {
+        edge: 64,
+        maxSpeed: 36,
+      });
+  } catch {}
+  const id = String(e?.active?.id || "");
+  // keep preview live for both phase and card drags
+  const show = isPhaseId(id, e) || isAssignmentId(id, e);
+  if (show) {
+    setDropPreview(computeDropPreview(id));
+  } else {
+    setDropPreview(null);
+  }
+};
 
-  async function onDragEnd(evt) {
-    const id = String(evt?.active?.id || "");
+async function onDragEnd(evt) {
+  const id = String(evt?.active?.id || "");
 
-    // === CASE 1: Moving an existing card within grid (Grid -> Grid) ===
-    if (id.startsWith("card:")) {
-      const surface = document.querySelector(".ng-taskLayer");
-      if (!surface || !cols.length || !people.length) {
-        setActiveDragId(null);
-        setDropPreview(null);
-        setIsPhaseDrag(false);
-        return;
-      }
-      const rect = surface.getBoundingClientRect();
-      const px = pointerRef.current.x - rect.left;
-      const py = pointerRef.current.y - rect.top;
-      if (px < 0 || py < 0) {
-        setActiveDragId(null);
-        setDropPreview(null);
-        setIsPhaseDrag(false);
-        return;
-      }
+  try {
+    // === 1) assignment moved within grid ===
+    if (
+      id.startsWith("assignment:") ||
+      evt?.active?.data?.current?.kind === "assignment"
+    ) {
+      // ✅ Use the SAME math as preview
+      const target = dropPreview ?? computeDropPreview(id);
+      if (!target || !cols.length || !people.length) return;
+      const { colIndex, laneIdx } = target;
 
-      const colIndex = Math.max(0, Math.round(px / colW));
       const dpc = daysPerColumn(zoom);
       const startDate = new Date(cols[0].start);
       startDate.setHours(0, 0, 0, 0);
       startDate.setDate(startDate.getDate() + colIndex * dpc);
 
-      const laneIdx = Math.min(
-        Math.max(Math.floor(py / laneH), 0),
-        Math.max(people.length - 1, 0)
-      );
       const person = people[laneIdx];
-      if (person) {
-        const cardId = id.replace("card:", "");
-        const t = tasks.find((x) => String(x.id) === cardId);
-        if (t) {
-          await persistMove({
-            id: t.id,
-            personId: person.id,
-            start: startDate,
-            durationDays: t.durationDays,
-          });
-        }
-      }
+      if (!person) return;
 
-      setActiveDragId(null);
-      setDropPreview(null);
-      setIsPhaseDrag(false);
+      const assignmentId = id.replace("assignment:", "");
+      const t = tasks.find((x) => String(x.id) === assignmentId);
+      if (t) {
+        await persistMove({
+          id: t.id,
+          personId: person.id,
+          start: startDate,
+          durationDays: t.durationDays,
+        });
+      }
       return;
     }
 
-    // === CASE 2: Dropping a phase from sidebar (Phase -> Grid) ===
-    if (id.startsWith("phase:")) {
+    // === 2) phase from sidebar -> create assignment ===
+    if (
+      id.startsWith("phase:") ||
+      evt?.active?.data?.current?.kind === "phase"
+    ) {
       const phaseId = Number(id.split(":")[1]);
-      const surface = document.querySelector(".ng-taskLayer");
-      if (!surface || !cols.length || !people.length) {
-        setActiveDragId(null);
-        setDropPreview(null);
-        setIsPhaseDrag(false);
-        return;
-      }
-      const rect = surface.getBoundingClientRect();
-      const px = pointerRef.current.x - rect.left;
-      const py = pointerRef.current.y - rect.top;
-      if (px < 0 || py < 0) {
-        setActiveDragId(null);
-        setDropPreview(null);
-        setIsPhaseDrag(false);
-        return;
-      }
 
-      const colIndex = Math.max(0, Math.round(px / colW));
+      // ✅ Use the SAME math as preview
+      const target = dropPreview ?? computeDropPreview(id);
+      if (!target || !cols.length || !people.length) return;
+      const { colIndex, laneIdx } = target;
+
       const dpc = daysPerColumn(zoom);
       const startDate = new Date(cols[0].start);
       startDate.setHours(0, 0, 0, 0);
       startDate.setDate(startDate.getDate() + colIndex * dpc);
 
-      const laneIdx = Math.min(
-        Math.max(Math.floor(py / laneH), 0),
-        Math.max(people.length - 1, 0)
-      );
       const person = people[laneIdx];
-      if (!person) {
-        setActiveDragId(null);
-        setDropPreview(null);
-        setIsPhaseDrag(false);
-        return;
-      }
+      if (!person) return;
 
       const phase = phaseIndex[String(phaseId)] || {};
       const maxDays = Number(
@@ -522,24 +560,25 @@ export default function NewGrid() {
         maxDays,
         title: phase.title || phase.name || `Phase ${phaseId}`,
       });
-      setActiveDragId(null);
-      setDropPreview(null);
-      setIsPhaseDrag(false);
       return;
     }
-
-    // default cleanup
+  } finally {
     setActiveDragId(null);
     setDropPreview(null);
     setIsPhaseDrag(false);
   }
+}
+
 
   return (
     <DndContext
       sensors={sensors}
       onDragStart={onDragStart}
       onDragMove={onDragMove}
-      onDragCancel={() => { setDropPreview(null); setIsPhaseDrag(false); }}
+      onDragCancel={() => {
+        setDropPreview(null);
+        setIsPhaseDrag(false);
+      }}
       onDragEnd={onDragEnd}
     >
       <div className="ng-shell">
@@ -611,7 +650,9 @@ export default function NewGrid() {
               <div className="ng-sectionTitle">Phases</div>
               <PhaseSidebar
                 onPhaseIndex={setPhaseIndex}
-                onVisibilityChange={({ visiblePhaseIds }) => refreshAssignments(visiblePhaseIds)}
+                onVisibilityChange={({ visiblePhaseIds }) =>
+                  refreshAssignments(visiblePhaseIds)
+                }
                 remainingByPhase={phaseRemaining}
                 hideFullyAssigned
               />
@@ -698,10 +739,8 @@ export default function NewGrid() {
                     zoom={zoom}
                     tasks={tasks}
                     colWidth={colW}
-                    onTaskUpdate={persistMove}
                   />
 
-                  {/* NEW: show preview for both phase and card drags */}
                   {dropPreview && (
                     <div
                       aria-hidden="true"

@@ -2,8 +2,8 @@
  * TaskLayer.jsx
  *
  * 1) Purpose (functional):
- *    Renders and manages all task cards on the scheduling grid. It computes each card's
- *    position/size from the grid columns (time) and people (lanes), lets users drag cards
+ *    Renders and manages all task assignments on the scheduling grid. It computes each assignment's
+ *    position/size from the grid columns (time) and people (lanes), lets users drag assignments
  *    to reschedule (change start date) or reassign (change person), and provides a compact
  *    tooltip + keyboard affordances (Esc deselect, Del remove).
  *
@@ -13,12 +13,12 @@
  *      * tasks: [{ id, personId, start: Date, durationDays, title, color }]
  *      * onTaskUpdate({ id, personId, start, startDate, durationDays, title, color }) is called on drop.
  *    - Layout: computeLayout() converts tasks -> absolute left/top/width (px) using col width and lane height.
- *      It also flags cards overlapping non-work days via dayStatus().
- *    - DnD: useDndMonitor listens to drag lifecycle; DraggableCard uses useDraggable per card.
- *      We tag drags with data.kind='task' and include the card data. This makes drop targets
+ *      It also flags assignments overlapping non-work days via dayStatus().
+ *    - DnD: useDndMonitor listens to drag lifecycle; DraggableCard uses useDraggable per assignment.
+ *      We tag drags with data.kind='task' and include the assignment data. This makes drop targets
  *      and higher-level handlers consistent with phase drags (which use kind='phase').
- *    - Styling: Cards expose CSS variable `--ng-accent` based on `card.color` so global CSS
- *      (e.g. .ng-card { border-left: 3px solid var(--ng-accent, #2563eb); }) can render a bank-colored accent.
+ *    - Styling: Cards expose CSS variable `--ng-accent` based on `assignment.color` so global CSS
+ *      (e.g. .ng-assignment { border-left: 3px solid var(--ng-accent, #2563eb); }) can render a bank-colored accent.
  *      We also keep borderLeftColor inline as a safe fallback.
  *    - LocalEdits: stores temporary start/personId while dragging when onTaskUpdate is not supplied.
  *      HiddenIds: demo delete. Lane height is synced from CSS var --ng-laneH.
@@ -38,7 +38,7 @@ const DAY = 24 * 60 * 60 * 1000
 const toStartOfDay = (d) => { const x = new Date(d); x.setHours(0,0,0,0); return x }
 
 /**
- * Compute left/top/width for every task card.
+ * Compute left/top/width for every task assignment.
  */
 function computeLayout({ cols, people, zoom, tasks, colW, laneH }){
   const dpc = daysPerColumn(zoom)
@@ -81,7 +81,7 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
   const [hiddenIds, setHiddenIds] = useState(() => new Set())
   const [localEdits, setLocalEdits] = useState(() => new Map()) // id -> {start, personId}
 
-  // Tooltip state (anchored to card, not pointer)
+  // Tooltip state (anchored to assignment, not pointer)
   const [tip, setTip] = useState(null) // { id, x, y, title, dateRange, duration }
   const [dragId, setDragId] = useState(null)
 
@@ -126,7 +126,7 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
     return () => window.removeEventListener('keydown', onKey)
   }, [selectedId])
 
-  // If the hovered card disappears (e.g., after delete), remove tooltip
+  // If the hovered assignment disappears (e.g., after delete), remove tooltip
   useEffect(() => {
     if(tip && !layout.some(c => c.id === tip.id)){
       setTip(null)
@@ -135,16 +135,16 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
 
   const formatDate = (d) => d?.toLocaleDateString?.() ?? ''
 
-  // Show tooltip anchored to card (no mousemove updates)
-  function showTipForCard(card){
-    const x = card.left + (card.width / 2)
-    const y = card.top - (laneH / 2) - 8
-    setTip(prev => (prev?.id === card.id ? prev : {
-      id: card.id,
+  // Show tooltip anchored to assignment (no mousemove updates)
+  function showTipForCard(assignment){
+    const x = assignment.left + (assignment.width / 2)
+    const y = assignment.top - (laneH / 2) - 8
+    setTip(prev => (prev?.id === assignment.id ? prev : {
+      id: assignment.id,
       x, y,
-      title: card.title,
-      dateRange: `${formatDate(card.start)} – ${formatDate(card.end)}`,
-      duration: `${card.durationDays} day${card.durationDays === 1 ? '' : 's'}`,
+      title: assignment.title,
+      dateRange: `${formatDate(assignment.start)} – ${formatDate(assignment.end)}`,
+      duration: `${assignment.durationDays} day${assignment.durationDays === 1 ? '' : 's'}`,
     }))
   }
   function hideTip(){ setTip(null) }
@@ -156,54 +156,40 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
   }
   function onLayerLeave(){ setTip(null) }
 
-  // Listen to top-level DnD for card drags
-  useDndMonitor({
-    onDragStart(event){
-      const id = String(event?.active?.id ?? '')
-      if(layout.some(c => c.id === id)){
-        setDragId(id); setSelectedId(id); setTip(null)
-      }
-    },
-    onDragCancel(){ setDragId(null) },
-    onDragEnd(event){
-      const id = String(event?.active?.id ?? '')
-      if(!layout.some(c => c.id === id)){ setDragId(null); return }
-      const delta = event?.delta || { x: 0, y: 0 }
-      const card = layout.find(c => c.id === id)
-      if(!card || !gridStart){ setDragId(null); return }
-
-      const nextLeft = card.left + Math.round(delta.x)
-      const nextTop  = card.top  + Math.round(delta.y)
-
-      const colIndex = Math.max(0, Math.round(nextLeft / colW))
-      const startDate = addDays(toStartOfDay(gridStart), colIndex * dpc)
-
-      const approxIdx = Math.floor((nextTop - (laneH / 2)) / laneH)
-      const clampedIdx = clamp(approxIdx, 0, Math.max(people.length - 1, 0))
-      const nextPerson = people?.[clampedIdx]
-      const nextPersonId = nextPerson ? String(nextPerson.id) : card.personId
-
-      if(typeof onTaskUpdate === 'function'){
-        onTaskUpdate({ id, personId: nextPersonId, start: startDate, startDate, durationDays: card.durationDays, title: card.title, color: card.color })
-      }else{
-        setLocalEdits(prev => { const next = new Map(prev); next.set(id, { start: startDate, personId: nextPersonId }); return next })
-      }
-      setDragId(null)
+  // Listen to top-level DnD for assignment drags
+// Listen to top-level DnD for assignment drags (UI only)
+useDndMonitor({
+  onDragStart(event) {
+    const id = String(event?.active?.id ?? '');
+    const plainId = id.replace(/^assignment:/, '');
+    if (layout.some(c => c.id === plainId)) {
+      setDragId(id);
+      setSelectedId(plainId);
+      // if you have setTip, uncomment the next line:
+      setTip(null);
     }
-  })
+  },
+  onDragCancel() {
+    setDragId(null);
+  },
+  onDragEnd() {
+    setDragId(null);
+  },
+});
 
-  // Draggable card — composes base CSS transform with drag transform so it doesn't jump
-  function DraggableCard({ card }){
-    const {attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({ id: card.id, data: { kind: 'task', taskId: card.id, task: card } })
+
+  // Draggable assignment — composes base CSS transform with drag transform so it doesn't jump
+  function DraggableAssignment({ assignment }){
+    const {attributes, listeners, setNodeRef, transform, isDragging} = useDraggable({ id: `assignment:${assignment.id}`, data: { kind: 'assignment', taskId: assignment.id, task: assignment } })
     const dragT = CSS.Translate.toString(transform) // translate3d(x,y,0)
     const style = {
-      left: card.left,
-      top: card.top,
-      width: card.width,
-      "--ng-accent": card.color || '#2563eb',
-      borderLeftColor: card.color || '#2563eb',
+      left: assignment.left,
+      top: assignment.top,
+      width: assignment.width,
+      "--ng-accent": assignment.color || '#2563eb',
+      borderLeftColor: assignment.color || '#2563eb',
       transform: transform
-        ? `translateY(calc(-50% + var(--ng-card-yshift))) ${dragT}`
+        ? `translateY(calc(-50% + var(--ng-assignment-yshift))) ${dragT}`
         : undefined,
       willChange: transform ? 'transform' : undefined,
     }
@@ -212,17 +198,17 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
         ref={setNodeRef}
         {...listeners}
         {...attributes}
-        className={`ng-card${card.warn ? ' ng-card--warn' : ''}${selectedId === card.id ? ' ng-card--selected' : ''}${(isDragging || dragId === card.id) ? ' ng-card--dragging' : ''}`}
+        className={`ng-assignment${assignment.warn ? ' ng-assignment--warn' : ''}${selectedId === assignment.id ? ' ng-assignment--selected' : ''}${(isDragging || dragId === assignment.id) ? ' ng-assignment--dragging' : ''}`}
         style={style}
-        onClick={(e) => { e.stopPropagation(); setSelectedId(card.id) }}
-        onMouseEnter={() => showTipForCard(card)}
+        onClick={(e) => { e.stopPropagation(); setSelectedId(assignment.id) }}
+        onMouseEnter={() => showTipForCard(assignment)}
         onMouseLeave={hideTip}
         tabIndex={0}
-        aria-selected={selectedId === card.id}
-        aria-label={`${card.title} from ${formatDate(card.start)} to ${formatDate(card.end)}`}
+        aria-selected={selectedId === assignment.id}
+        aria-label={`${assignment.title} from ${formatDate(assignment.start)} to ${formatDate(assignment.end)}`}
       >
-        <div className="ng-cardDragHandle" />
-        <div className="ng-cardTitle">{card.title}</div>
+        <div className="ng-assignmentDragHandle" />
+        <div className="ng-assignmentTitle">{assignment.title}</div>
       </div>
     )
   }
@@ -230,11 +216,11 @@ export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, on
   return (
     <div
       ref={rootRef}
-      className="ng-taskLayer"
+      className="ng-taskContent"
       onClick={onLayerClick}
       onMouseLeave={onLayerLeave}
     >
-      {layout.map(card => (<DraggableCard key={card.id} card={card} />))}
+      {layout.map(assignment => (<DraggableAssignment key={assignment.id} assignment={assignment} />))}
 
       {tip && !dragId && (
         <div className="ng-tooltip" style={{ left: tip.x, top: tip.y }} role="tooltip">
