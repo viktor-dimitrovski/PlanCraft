@@ -129,6 +129,8 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
   border: 2px dashed rgba(37,99,235,.45);
   border-radius: 10px;
   pointer-events: none;
+  /* make the preview feel attached to the dragged card */
+  transition: left 60ms linear, top 60ms linear, width 60ms linear;
 }
 .ng-splitPrompt{
   position: fixed;
@@ -218,3 +220,4 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
 
 /* ===== Card bank accent (expects inline --ng-accent from task.color) ===== */
 .ng-assignment{ border-left:3px solid var(--ng-accent, #2563eb); }
+

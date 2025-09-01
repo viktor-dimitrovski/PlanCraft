@@ -339,8 +339,9 @@ function computeDropPreview(activeId) {
     : (zoom === "day" ? 1 : (zoom === "week" ? 7 : 14));
 
   const colIndex = Math.max(0, Math.floor(px / colW));
+  // Sticky lane selection: stay in тековната лента додека центарот не ја премине границата
   const laneIdx  = Math.min(
-    Math.max(Math.round(py / laneH), 0),
+    Math.max(Math.floor(py / laneH), 0),
     Math.max(people.length - 1, 0)
   );
 
