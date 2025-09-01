@@ -229,7 +229,7 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
   bottom: 0;
   width:2px;
   background:#ef4444; /* red-500 */
-  transform: translateX(-1px);
+  transform: none;
   pointer-events:none;
   z-index: 5;
 }
@@ -243,7 +243,7 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
   pointer-events:none;
   z-index: 6;
 } */
-.ng-today::before{
+.ng-today::before {
   content:"";
   position:absolute;
   top: 0;
@@ -254,6 +254,7 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
   transform: translate(-50%, -50%);
   box-shadow: 0 0 0 2px #fff inset;
 }
+
 
 /* ===== Card style: compact variant ===== */
 .ng-style-compact .ng-assignment{

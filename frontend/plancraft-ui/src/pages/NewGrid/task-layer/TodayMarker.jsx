@@ -15,7 +15,6 @@ export default function TodayMarker({ gridStart, zoom, colW }) {
   return (
     <>
       <div className="ng-today" style={{ left }} />
-      <div className="ng-today-nub" style={{ left }} />
     </>
   )
 }
