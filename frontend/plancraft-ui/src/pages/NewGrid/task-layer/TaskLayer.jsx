@@ -68,6 +68,7 @@ function computeLayout({ cols, people, zoom, tasks, colW, laneH }){
       personId: String(t.personId),
       start,
       durationDays: Number(t.durationDays || 1),
+      percentageComplete: Number(t.percentageComplete ?? t.progress ?? 0),
       left, top, width, warn,
       end: new Date(start.getTime() + (Number(t.durationDays || 1) - 1) * DAY),
     }
@@ -208,8 +209,12 @@ useDndMonitor({
         aria-selected={selectedId === assignment.id}
         aria-label={`${assignment.title} from ${formatDate(assignment.start)} to ${formatDate(assignment.end)}`}
       >
-        <div className="ng-assignmentDragHandle" />
-        <div className="ng-assignmentTitle">{assignment.title}</div>
+        <div className="ng-assignmentInner" style={{
+          ["--ng-progress-pct"]: `${Math.max(0, Math.min(100, assignment.percentageComplete || 0))}%`
+        }}>
+          <div className="ng-assignmentTitle">{assignment.title}</div>
+          <div className="ng-assignmentMeta">{assignment.durationDays}d{typeof assignment.percentageComplete === "number" ? ` · ${Math.round(assignment.percentageComplete)}%` : ""}</div>
+        </div>
       </div>
     )
   }

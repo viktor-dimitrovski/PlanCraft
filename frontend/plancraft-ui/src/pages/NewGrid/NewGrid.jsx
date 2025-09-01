@@ -612,7 +612,12 @@ async function onDragEnd(evt) {
       }}
       onDragEnd={onDragEnd}
     >
-      <div className={`ng-shell ${cardStyle === "compact" ? "ng-style-compact" : "ng-style-standard"}`}>
+      <div className={`ng-shell ${
+        cardStyle === "compact" ? "ng-style-compact" :
+        cardStyle === "slim" ? "ng-style-slim" :
+        cardStyle === "contrast" ? "ng-style-contrast" :
+        cardStyle === "clarity" ? "ng-style-clarity" : ""
+      }`}>
         <div className="ng-toolbar">
           <button
             className="ng-btn"
@@ -668,13 +673,20 @@ async function onDragEnd(evt) {
             </select>
           </div>
         
-	<div className="ng-pill">
-	  <span className="ng-label">Card style</span>
-	  <select className="ng-select" value={cardStyle} onChange={e=>setCardStyle(e.target.value)}>
-	    <option value="standard">Standard</option>
-	    <option value="compact">Compact</option>
-	  </select>
-	</div>
+          <div className="ng-pill">
+	    <span className="ng-label">Style</span>
+	    <select
+	      className="ng-select"
+	      value={cardStyle}
+	      onChange={(e) => setCardStyle(e.target.value)}
+	    >
+	      <option value="standard">Standard</option>
+	      <option value="compact">Compact</option>
+	      <option value="slim">Slim</option>
+	      <option value="contrast">Contrast</option>
+	      <option value="clarity">Clarity</option>
+	    </select>
+	  </div>
 
         </div>
 
