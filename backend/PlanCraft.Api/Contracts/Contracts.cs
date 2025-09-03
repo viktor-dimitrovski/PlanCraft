@@ -1,4 +1,4 @@
-﻿namespace PlanCraft.Api;
+﻿namespace PlanCraft.Api.Contracts;
 
 public record PlanPhaseReq(int PersonId, DateTime StartDateUtc, string[]? RequiredSkills);
 public record MoveReq(int TaskId, DateTime? NewStartDate, int? NewPrimaryPersonId, int? NewDurationDays, bool Copy);

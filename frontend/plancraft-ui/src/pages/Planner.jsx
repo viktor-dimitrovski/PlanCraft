@@ -15,7 +15,7 @@ import { usePlan } from '../state/usePlanStore'
 import usePlannerData from './hooks/usePlannerData'
 
 import {
-  fetchGrid,
+  fetchGridPhases,
   fetchProjects,
   moveTask,
   autobalance,

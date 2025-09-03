@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace PlanCraft.Api.Endpoints;
+namespace PlanCraft.Api.Handlers;
 
 public static class PhaseVerificationHandlers
 {

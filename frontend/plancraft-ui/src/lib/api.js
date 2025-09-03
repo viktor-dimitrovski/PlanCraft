@@ -38,13 +38,24 @@ export const apiPatch  = (p, body, options)   => request(p, { method: 'PATCH', b
 /* =========================== PLAN =========================== */
 
 /** GET /plan/grid?from=...&to=...&scenarioId=opt */
-export function fetchGrid(from, to, scenarioId) {
+// export function fetchGrid(from, to, scenarioId) {
+//   const q = new URLSearchParams();
+//   if (from) q.set('from', asISO(from));
+//   if (to)   q.set('to',   asISO(to));
+//   if (scenarioId != null) q.set('scenarioId', String(scenarioId));
+//   return apiGet(`plan/grid?${q.toString()}`);
+//}
+
+export function fetchGridPhases(from, to, scenarioId) {
   const q = new URLSearchParams();
-  if (from) q.set('from', asISO(from));
-  if (to) q.set('to', asISO(to));
+  const asDateOnly = d => (d instanceof Date ? d.toISOString().slice(0,10) : d);
+  if (from) q.set('from', asDateOnly(from));
+  if (to)   q.set('to',   asDateOnly(to));
   if (scenarioId != null) q.set('scenarioId', String(scenarioId));
-  return apiGet(`plan/grid?${q.toString()}`);
+  return apiGet(`plan/grid-phases?${q.toString()}`);
 }
+
+
 
 /** POST /plan/autobalance  { from, to, targetLoad } */
 export function autobalance(from, to, targetLoad = 0.85) {
@@ -201,4 +212,9 @@ export const duplicateProjectPhases = (sourceProjectId, targetProjectId) => apiP
 // export const duplicateProjectPhases = (sourceProjectId, targetProjectId) => {
 //   return apiPost(`projects/${sourceProjectId}/duplicate/${targetProjectId}`);
 // };
+
+/* =========================== GRID (single-call nested) =========================== */
+/** GET /plan/grid?from=...&to=...&scenarioId=opt
+ * Returns: [ { id,name,color, projects:[{ id,name, phases:[{ id,title,estimatedDays,color, assignments:[{id,personId,startDate,assignedDays}] }]}] } ]
+ */
 

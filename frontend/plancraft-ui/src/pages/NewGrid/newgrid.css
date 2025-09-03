@@ -3,7 +3,7 @@
   --ng-headerH0: 35px;
   --ng-headerH1: 32px;
   --ng-headerH2: 28px;
-  --ng-laneH: 56px;
+  --ng-laneH: 67px;
   --ng-colW: 96px;
   --ng-stroke: #e5e7eb;
   --ng-accent: #2563eb;
@@ -27,11 +27,26 @@
 aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); background:#fff; }
 
 /* body */
-.ng-scroll{ overflow:auto; height:100%; }
-.ng-body{ display:grid; grid-template-columns: var(--ng-lanesW) 1fr; min-width: 900px; }
+.ng-scroll{ overflow:auto; height:100%; position: relative; } /* establish containing block */
+.ng-body{
+  display:grid;
+  grid-template-columns: var(--ng-lanesW) 1fr;
+  min-width: 900px;
+  align-items: start; /* prevent grid's default stretch from breaking sticky */
+}
 
 /* left */
-.ng-bodyLeft{ border-right:1px solid var(--ng-stroke); background:#fff; }
+.ng-bodyLeft{
+  border-right:1px solid var(--ng-stroke);
+  background:#fff;
+  position: sticky;   /* keep People column visible on horizontal scroll */
+  left: 0;
+  z-index: 9;
+  align-self: start;  /* critical inside CSS Grid */
+  width: var(--ng-lanesW);
+  min-width: var(--ng-lanesW);    /* lock width so it doesn't compress */
+}
+
 .ng-headerH1{ height:var(--ng-headerH0); border-bottom:1px solid var(--ng-stroke); }
 .ng-headerH2{ height:var(--ng-headerH2); border-bottom:1px solid var(--ng-stroke); }
 .people .ng-person{ height:var(--ng-laneH); display:flex; align-items:center; padding:0 12px; border-bottom:1px solid rgba(2,6,23,.06); }
@@ -89,7 +104,7 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
 .ng-assignment{
   position:absolute;
   height: calc(var(--ng-laneH) - 12px);
-  border:1px solid var(--ng-stroke);
+  border:4px solid var(--ng-stroke);
   border-left:4px solid var(--ng-accent);
   border-radius:10px;
   background:#fff;
@@ -104,7 +119,12 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
 }
 
 .ng-assignmentDragHandle{ position:absolute; left:0; top:0; bottom:0; width:6px; cursor:grab; opacity:.35; }
-.ng-assignmentTitle{ font-size:12px; color:#0f172a; }
+.ng-assignmentTitle {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: normal;    /* allow wrapping */
+  line-height: 1.3;
+}
 
 .ng-assignment--warn{ background:#fff7ed; border-left-color:#f59e0b; }
 .ng-assignment--selected{ outline:2px solid #94a3b8; outline-offset:1px; }
@@ -304,10 +324,10 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
   color: #475569;
   opacity: .9;
 }
-.ng-assignmentMeta{
-  margin-top: 4px;
+.ng-assignmentMeta {
   font-size: 12px;
-  color: #694847;
+  margin-top: 4px;
+  color: #475569;
 }
 
 /* progress background (uses --ng-progress-pct inline) */
@@ -397,4 +417,39 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
     linear-gradient(90deg, var(--ng-accent, #2563eb) var(--ng-progress-pct, 0%), transparent var(--ng-progress-pct, 0%)),
     linear-gradient(90deg, rgba(2,6,23,.08) 0%, rgba(2,6,23,.08) 100%);
   pointer-events: none;
+}
+
+/* === Freeze panes: left People + top Months/Cols ======================= */
+/* Keep the left people block visible on horizontal scroll (still scrolls vertically) */
+
+
+/* Pin top month band */
+.ng-months{
+  position: sticky;
+  top: 0;
+  z-index: 6;           /* below column headers, above grid */
+  background: #fff;
+  height: var(--ng-headerH1);  /* matches task layer math */
+}
+
+/* Pin column headers just under months */
+.ng-cols{
+  position: sticky;
+  top: var(--ng-headerH1);
+  z-index: 7;           /* above months & today line */
+  background: #fff;
+}
+
+/* Left-side header placeholders should mirror the sticky top rows */
+.ng-headerH1{
+  position: sticky;
+  top: 0;
+  z-index: 7;
+  background: #fff;
+}
+.ng-headerH2{
+  position: sticky;
+  top: var(--ng-headerH1);
+  z-index: 7;
+  background: #fff;
 }

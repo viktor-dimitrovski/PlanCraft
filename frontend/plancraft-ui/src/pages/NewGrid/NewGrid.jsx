@@ -12,6 +12,16 @@
  *    - Pointer-based math (vs droppable cells) determines target lane/column for both new and moved cards.
  *    - `createPhaseAssignment` for new drops; `updatePhaseAssignment` for moves.
  *    - This revision enables drop preview and proper onDragEnd handling for `card:` drags too.
+ 
+  * NewGrid.jsx — single-call version (no per-phase network loops)
+ *
+ * Uses fetchGridPhases(from,to) aggregated response to populate:
+ * - banksCatalog, projectsByBank (for sidebar filters)
+ * - phaseIndex (phase metadata: title, bankId, projectId, color)
+ * - assignmentsCache (Map<phaseId, Assignment[]>)
+ * - tasks (flat array for TaskLayer)
+ *
+ * Removes per-phase auto loading and NEVER calls listPhaseAssignments.
  */
 
 import React, { useMemo, useRef, useState, useEffect } from "react";
@@ -32,9 +42,10 @@ import {
 } from "@dnd-kit/core";
 import {
   fetchPeople,
+  fetchGridPhases,
   createPhaseAssignment,
-  updatePhaseAssignment,
-  listPhaseAssignments,
+  updatePhaseAssignment, 
+  deletePhaseAssignment
 } from "../../lib/api";
 
 function LaneRow({ person }) {
@@ -80,11 +91,93 @@ export default function NewGrid() {
   }, [colW]);
 
   const [people, setPeople] = useState([]);
+  const [peopleLoadedFromGrid, setPeopleLoadedFromGrid] = useState(false);
   useEffect(() => {
-    fetchPeople()
-      .then(setPeople)
-      .catch(() => setPeople([]));
-  }, []);
+    if (peopleLoadedFromGrid) return;
+    let cancelled = false;
+    (async () => {
+      try { const ppl = await fetchPeople(); if(!cancelled) setPeople(ppl||[]); }
+      catch { if(!cancelled) setPeople([]); }
+    })();
+    return () => { cancelled = true };
+  }, [peopleLoadedFromGrid]);
+  // === Single-call load for banks -> projects -> phases -> assignments for the visible window ===
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const grid = await fetchGridPhases(from, to);
+        if (cancelled) return;
+
+        const banks = Array.isArray(grid) ? grid : (grid?.banks || []);
+        if (grid && Array.isArray(grid.people)) {
+          setPeople(grid.people);
+          setPeopleLoadedFromGrid(true);
+        }
+
+        // catalogs for sidebar
+        setBanksCatalog((banks || []).map(b => ({ id: b.id, name: b.name, color: b.color })));
+        const pbb = {};
+        const idx = {};
+        const collected = [];
+
+        for (const b of (banks || [])) {
+          const bid = String(b.id);
+          pbb[bid] = (b.projects || []).map(p => ({ id: p.id, name: p.name }));
+
+          for (const p of (b.projects || [])) {
+            for (const ph of (p.phases || [])) {
+              idx[String(ph.id)] = {
+                id: ph.id,
+                projectId: p.id,
+                bankId: b.id,
+                title: ph.title || ph.name,
+                color: b.color || ph.color || '#2563eb',
+              };
+              for (const a of (ph.assignments || [])) {
+                collected.push({
+                  id: a.id,
+                  phaseId: ph.id,
+                  personId: a.personId,
+                  startDate: a.startDate,
+                  assignedDays: a.assignedDays,
+                });
+              }
+            }
+          }
+        }
+
+        setProjectsByBank(pbb);
+        setPhaseIndex(idx);
+
+        const cache = new Map();
+        for (const a of collected) {
+          const pid = Number(a.phaseId);
+          const arr = cache.get(pid) || [];
+          arr.push(a);
+          cache.set(pid, arr);
+        }
+        Object.keys(idx).forEach(k => { const pid = Number(k); if (!cache.has(pid)) cache.set(pid, []); });
+        setAssignmentsCache(cache);
+
+        setTasks(collected.map(a => ({
+          id: String(a.id),
+          assignmentId: a.id,
+          phaseId: Number(a.phaseId),
+          personId: Number(a.personId),
+          start: new Date(a.startDate),
+          durationDays: Number(a.assignedDays || 0),
+          title: (idx[String(a.phaseId)]?.title) || `Phase ${a.phaseId}`,
+          color: (idx[String(a.phaseId)]?.color) || '#2563eb',
+        })));
+
+      } catch (e) {
+        console.error('fetchGridPhases failed', e);
+      }
+    })();
+    return () => { cancelled = true };
+  }, [from, to]);
+
 
   const [phaseIndex, setPhaseIndex] = useState({});
   const [dropPreview, setDropPreview] = useState(null);
@@ -92,14 +185,151 @@ export default function NewGrid() {
   const [splitDays, setSplitDays] = useState(0);
   const [tasks, setTasks] = useState([]);
   const [assignmentsCache, setAssignmentsCache] = useState(() => new Map());
+  // === Split existing assignment (context menu) ===
+  const [splitExisting, setSplitExisting] = useState(null); // { assignmentId, personId, startDate, assignedDays, title }
+  const [splitExistingDays, setSplitExistingDays] = useState(1);
+  const [splitExistingPersonId, setSplitExistingPersonId] = useState('');
+
+  // helper to find phaseId from assignmentsCache
+  const findPhaseIdFor = (id) => {
+    for (const [pid, list] of assignmentsCache) {
+      if ((list || []).some(a => String(a.id) === String(id))) return Number(pid);
+    }
+    return null;
+  };
+
+  async function applySplitExisting() {
+    const aId = String(splitExisting.assignmentId);
+    const leftDays = Number(splitExistingDays);
+    const rightPersonId = Number(splitExistingPersonId);
+    const phaseId = findPhaseIdFor(aId);
+    if (!phaseId || leftDays <= 0) return;
+
+    // find original from cache
+    const list = assignmentsCache.get(phaseId) || [];
+    const original = list.find(a => String(a.id) == aId);
+    if (!original) return;
+    const total = Number(original.assignedDays || 0);
+    if (leftDays >= total) return;
+    const rightDays = total - leftDays;
+
+    const rightStartDate = (() => { const d = new Date(original.startDate); d.setDate(d.getDate()+leftDays); return d.toISOString().slice(0,10) })();
+
+    // optimistic updates
+    const prevCache = assignmentsCache;
+    const prevTasks = tasks;
+
+    setAssignmentsCache(prev => {
+      const next = new Map(prev);
+      const arr = (next.get(phaseId) || []).map(x => String(x.id)===aId ? { ...x, assignedDays: leftDays } : x);
+      next.set(phaseId, arr);
+      return next;
+    });
+    setTasks(prev => prev.map(t => String(t.assignmentId)===aId ? { ...t, durationDays: leftDays } : t));
+
+    try {
+      // shrink original
+      await updatePhaseAssignment(phaseId, Number(aId), { assignedDays: leftDays });
+      // create right segment
+      const created = await createPhaseAssignment(phaseId, { personId: rightPersonId, assignedDays: rightDays, startDate: rightStartDate });
+      if (created && created.id != null) {
+        // fetch phase meta for title/color
+        const phase = phaseIndex[String(phaseId)] || {};
+        const title = phase.title || phase.name || `Phase ${phaseId}`;
+        const color = phase.color || "#2563eb";
+
+        setAssignmentsCache(prev => {
+          const next = new Map(prev);
+          const arr = next.get(phaseId) || [];
+          next.set(phaseId, [...arr, { id: created.id, phaseId, personId: rightPersonId, assignedDays: rightDays, startDate: rightStartDate }]);
+          return next;
+        });
+        setTasks(prev => ([
+          ...prev,
+          {
+            id: String(created.id),
+            assignmentId: created.id,
+            phaseId,
+            personId: rightPersonId,
+            start: new Date(rightStartDate),
+            durationDays: rightDays,
+            title,
+            color,
+          }
+        ]));
+      }
+    } catch (err) {
+      console.error('split existing failed', err);
+      // rollback
+      setAssignmentsCache(prevCache);
+      setTasks(prevTasks);
+    } finally {
+      setSplitExisting(null);
+    }
+  }
+
   const [isPhaseDrag, setIsPhaseDrag] = useState(false);
   // 1) state
   const [phaseRemaining, setPhaseRemaining] = useState({});
+  function rebuildTasksFromCache(mapLike = assignmentsCache, filterPhaseIds = null) {
+    const selected = filterPhaseIds && filterPhaseIds.length ? new Set(filterPhaseIds.map(Number)) : null;
+    const out = [];
+    mapLike.forEach((list, pid) => {
+      if (selected && !selected.has(Number(pid))) return;
+      const ph = phaseIndex[String(pid)] || {};
+      (list || []).forEach(a => {
+        out.push({
+          id: String(a.id),
+          assignmentId: a.id,
+          phaseId: a.phaseId,
+          personId: a.personId,
+          start: new Date(a.startDate),
+          durationDays: Number(a.assignedDays || ph.estimatedDays || ph.durationDays || 1),
+          title: (ph.bankPrefix ? ph.bankPrefix + ':' : '') + (ph.title || ph.name || `Phase ${a.phaseId}`),
+          color: ph.color || '#2563eb',
+        });
+      });
+    });
+    setTasks(out);
+  }
+
+  const onSidebarVisibility = ({ visiblePhaseIds }) => {
+    rebuildTasksFromCache(assignmentsCache, visiblePhaseIds || null);
+  };
+
+  // === Catalogs emitted from PhaseSidebar ===
+  const [banksCatalog, setBanksCatalog] = useState([]); // [{id, name}]
+  const [projectsByBank, setProjectsByBank] = useState({}); // { [bankId]: [{id, name}] }
 
 
+  // === Bank & Project filter state (catalogs are global constants above) ===
+  // Null => no filter (show all). Bank filter gates project filter.
+  const [selectedBankId, setSelectedBankId] = useState(null);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
 
+  // Optional alias for clarity: we handle PhaseAssignments (internally stored in `tasks`)
+  const phaseAssignments = tasks;
 
-  // 2) топ-левел функција (без hooks внатре)
+  // Visible PhaseAssignments based on filters
+  const visibleAssignments = useMemo(() => {
+    let list = phaseAssignments;
+    if (selectedBankId != null) {
+      list = list.filter(pa => {
+        const ph = phaseIndex[String(pa.phaseId)] || {};
+        const bankId = ph?.bankId ?? ph?.bank?.id ?? null;
+        return bankId != null && String(bankId) === String(selectedBankId);
+      });
+      if (selectedProjectId != null) {
+        list = list.filter(pa => {
+          const ph = phaseIndex[String(pa.phaseId)] || {};
+          const projId = ph?.projectId ?? ph?.project?.id ?? ph?.projectKey ?? null;
+          return projId != null && String(projId) === String(selectedProjectId);
+        });
+      }
+    }
+    return list;
+  }, [phaseAssignments, selectedBankId, selectedProjectId, phaseIndex]);
+// 2) топ-левел функција (без hooks внатре)
   function recomputeRemaining(mapLike) {
     const res = {};
     // total по фаза (од phaseIndex)
@@ -131,15 +361,6 @@ export default function NewGrid() {
       recomputeRemaining();
     } catch {}
   }, [assignmentsCache, phaseIndex]);
-
-
-// Auto-load ALL assignments when phases are available (no need to expand sidebar)
-useEffect(() => {
-  const ids = Object.keys(phaseIndex || {}).map(Number)
-  if (ids.length) {
-    refreshAssignments(ids)
-  }
-}, [phaseIndex])
 
 
   const inFlight = useRef(new Set());
@@ -182,102 +403,7 @@ const dragBiasRef = useRef({ x: 0, y: 0 }); // calibrates overlay center vs raw 
   );
 
   const daysPerColumn = (z) => (z === "day" ? 1 : z === "week" ? 7 : 14);
-
-  async function refreshAssignments(visiblePhaseIds) {
-    const toLoad = (visiblePhaseIds || [])
-      .map(Number)
-      .filter(
-        (pid) => !inFlight.current.has(pid) && !assignmentsCache.has(pid)
-      );
-
-    if (!toLoad.length) {
-      const all = [];
-      assignmentsCache.forEach((list, pid) => {
-        const phase = phaseIndex[String(pid)] || {};
-        for (const a of list || []) {
-          all.push({
-            id: String(a.id),
-            assignmentId: a.id,
-            phaseId: a.phaseId,
-            personId: a.personId,
-            start: new Date(a.startDate),
-            durationDays: Number(
-              a.assignedDays || phase.estimatedDays || phase.durationDays || 1
-            ),
-            title: phase.title || phase.name || `Phase ${a.phaseId}`,
-            color: phase.color || "#2563eb",
-          });
-        }
-      });
-      setTasks(all);
-      return;
-    }
-
-    const queue = [...toLoad];
-    const results = [];
-    const CONC = 4;
-    const workers = new Array(CONC).fill(0).map(async () => {
-      while (queue.length) {
-        const pid = queue.shift();
-        inFlight.current.add(pid);
-        try {
-          const list = await listPhaseAssignments(Number(pid));
-          results.push([pid, list || []]);
-        } catch {
-          results.push([pid, []]);
-        } finally {
-          inFlight.current.delete(pid);
-        }
-      }
-    });
-    await Promise.all(workers);
-
-    setAssignmentsCache((prev) => {
-      const next = new Map(prev);
-      for (const [pid, list] of results) {
-        next.set(Number(pid), list || []);
-      }
-      return next;
-    });
-
-    const all = [];
-    for (const [pid, list] of results) {
-      const phase = phaseIndex[String(pid)] || {};
-      for (const a of list || []) {
-        all.push({
-          id: String(a.id),
-          assignmentId: a.id,
-          phaseId: a.phaseId,
-          personId: a.personId,
-          start: new Date(a.startDate),
-          durationDays: Number(
-            a.assignedDays || phase.estimatedDays || phase.durationDays || 1
-          ),
-          title: phase.title || phase.name || `Phase ${a.phaseId}`,
-          color: phase.color || "#2563eb",
-        });
-      }
-    }
-    assignmentsCache.forEach((list, pid) => {
-      if (toLoad.includes(Number(pid))) return;
-      const phase = phaseIndex[String(pid)] || {};
-      for (const a of list || []) {
-        all.push({
-          id: String(a.id),
-          assignmentId: a.id,
-          phaseId: a.phaseId,
-          personId: a.personId,
-          start: new Date(a.startDate),
-          durationDays: Number(
-            a.assignedDays || phase.estimatedDays || phase.durationDays || 1
-          ),
-          title: phase.title || phase.name || `Phase ${a.phaseId}`,
-          color: phase.color || "#2563eb",
-        });
-      }
-    });
-    setTasks(all);
-  }
+  async function refreshAssignments(visiblePhaseIds){ rebuildTasksFromCache(assignmentsCache, visiblePhaseIds || null); }
 
   const [activeDragId, setActiveDragId] = useState(null);
   const renderGhost = () => {
@@ -577,7 +703,7 @@ async function onDragEnd(evt) {
         startDate,
         phaseId,
         maxDays,
-        title: phase.title || phase.name || `Phase ${phaseId}`,
+        title: (phase.bankPrefix ? phase.bankPrefix + ":" : "") + (phase.title || phase.name || `Phase ${a.phaseId}`),
       });
       return;
     }
@@ -589,16 +715,49 @@ async function onDragEnd(evt) {
 }
 
 
-  const onDeleteAssignment = (assignmentId) => {
-    setTasks(prev => prev.filter(x => String(x.id) !== String(assignmentId)));
-    setAssignmentsCache(prev => {
-      const next = new Map(prev);
-      next.forEach((list, pid) => {
-        next.set(pid, (list || []).filter(a => String(a.id) !== String(assignmentId)));
-      });
-      return next;
-    });
-  };
+
+ const onDeleteAssignment = async (assignmentId) => {
+  // 0) Avoid double-firing (fast key-repeat)
+  if (!inFlight.current) inFlight.current = new Set();
+  if (inFlight.current.has(String(assignmentId))) return;
+  inFlight.current.add(String(assignmentId));
+   // snapshots for rollback
+   const prevTasks = tasks;
+   const prevCache = assignmentsCache;
+
+   // find the phaseId that owns this assignment (from your cache)
+   const findPhaseIdFor = (id) => {
+     for (const [pid, list] of assignmentsCache) {
+       if ((list || []).some(a => String(a.id) === String(id))) return Number(pid);
+     }
+     return null;
+   };
+   const phaseId = findPhaseIdFor(assignmentId);
+
+   // optimistic UI (keep your existing behavior)
+   setTasks(prev => prev.filter(x => String(x.id) !== String(assignmentId)));
+   setAssignmentsCache(prev => {
+     const next = new Map(prev);
+     next.forEach((list, pid) => {
+       next.set(pid, (list || []).filter(a => String(a.id) !== String(assignmentId)));
+     });
+     return next;
+   });
+
+   try {
+     // Primary endpoint: /phases/:phaseId/assignments/:id
+     if (phaseId != null) {
+       await deletePhaseAssignment(phaseId, Number(assignmentId));
+     } else {
+       throw new Error('phaseId not found for assignment ' + assignmentId);
+     }
+   } catch (err) {
+     console.error('Delete failed, rolling back', err);
+     // rollback
+     setTasks(prevTasks);
+     setAssignmentsCache(prevCache);
+   }
+ };
 
 
   return (
@@ -631,8 +790,7 @@ async function onDragEnd(evt) {
           <button
             className="ng-btn"
             onClick={() => {
-              const openPhases = Object.keys(phaseIndex).map(Number);
-              refreshAssignments(openPhases);
+              rebuildTasksFromCache();
             }}
           >
             Refresh
@@ -688,6 +846,43 @@ async function onDragEnd(evt) {
 	    </select>
 	  </div>
 
+          {/* === Bank & Project filters (using global catalogs) === */}
+          <div className="ng-pill">
+            <span className="ng-label">Bank</span>
+            <select
+              className="ng-select"
+              value={selectedBankId ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedBankId(val === '' ? null : val);
+                setSelectedProjectId(null); // reset project when bank changes
+              }}
+            >
+              <option value="">All</option>
+              {banksCatalog.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="ng-pill">
+            <span className="ng-label">Project</span>
+            <select
+              className="ng-select"
+              value={selectedProjectId ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedProjectId(val === '' ? null : val);
+              }}
+              disabled={selectedBankId == null}
+            >
+              <option value="">All</option>
+              {(projectsByBank[selectedBankId] || []).map(p => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+
+
         </div>
 
         <ResizableSidebar
@@ -700,14 +895,14 @@ async function onDragEnd(evt) {
           <div className="ng-left">
             <div className="ng-section">
               <div className="ng-sectionTitle">Phases</div>
-              <PhaseSidebar
-                onPhaseIndex={setPhaseIndex}
-                onVisibilityChange={({ visiblePhaseIds }) =>
-                  refreshAssignments(visiblePhaseIds)
-                }
-                remainingByPhase={phaseRemaining}
-                hideFullyAssigned
-              />
+                <PhaseSidebar
+                  banks={banksCatalog}
+                  projectsByBank={projectsByBank}
+                  onPhaseIndex={setPhaseIndex}
+                  onVisibilityChange={onSidebarVisibility}
+                  remainingByPhase={phaseRemaining}
+                  hideFullyAssigned
+                />
             </div>
           </div>
         </ResizableSidebar>
@@ -789,9 +984,10 @@ async function onDragEnd(evt) {
                     cols={cols}
                     people={people}
                     zoom={zoom}
-                    tasks={tasks}
+                    tasks={visibleAssignments}
                     colWidth={colW}
                     onDeleteAssignment={onDeleteAssignment}
+                    onRequestSplit={(assignment)=> setSplitExisting({ assignmentId: assignment.id, personId: assignment.personId, startDate: assignment.start.toISOString().slice(0,10), assignedDays: assignment.durationDays, title: assignment.title })}
                   />
 
                   {dropPreview && (
@@ -887,7 +1083,33 @@ async function onDragEnd(evt) {
             </div>
           </div>
         )}
-        <DragOverlay>{renderGhost()}</DragOverlay>
+        
+        {splitExisting && (
+          <div className="ng-splitPrompt" style={{ left: (pointerRef.current?.x||200) + 12, top: (pointerRef.current?.y||120) + 12 }}>
+            <div className="ng-splitPrompt__card">
+              <div className="ng-splitPrompt__title">Split “{splitExisting.title}”</div>
+              <div className="ng-splitPrompt__row">
+                <label>Left segment days</label>
+                <input type="number" min={1} max={splitExisting.assignedDays-1}
+                  value={splitExistingDays}
+                  onChange={(e)=> setSplitExistingDays(Math.max(1, Math.min(splitExisting.assignedDays-1, Number(e.target.value||1))))} />
+                <small>Total: {splitExisting.assignedDays}d</small>
+              </div>
+              <div className="ng-splitPrompt__row">
+                <label>Right segment → Person</label>
+                <select value={splitExistingPersonId} onChange={(e)=> setSplitExistingPersonId(e.target.value)}>
+                  <option value="">Select person…</option>
+                  {people.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
+                </select>
+              </div>
+              <div className="ng-splitPrompt__row">
+                <button className="primary" disabled={!splitExistingPersonId} onClick={applySplitExisting}>Split</button>
+                <button onClick={()=> setSplitExisting(null)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+<DragOverlay>{renderGhost()}</DragOverlay>
       </div>
     </DndContext>
   );

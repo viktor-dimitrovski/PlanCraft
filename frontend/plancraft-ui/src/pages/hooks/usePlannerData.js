@@ -1,96 +1,89 @@
+// usePlannerData.js
+import { useState, useEffect } from "react";
+import { fetchGridPhases } from "../../lib/api";
 
 /**
- * usePlannerData — minimal, defensive hook for NewGrid wiring
- * - Attempts to load grid data for a date range via lib/api.fetchGrid(from, to, scenarioId?)
- * - Maps it to { people: [{id,name,color?}], tasks: [{id,personId,start,durationDays,title,color}] }
- * - Fallbacks: if API fails or data is empty, leaves arrays empty (NewGrid will use demo).
+ * Normalize server response (banks → projects → phases → assignments)
+ * into { people, tasks, weeks }
  */
-import { useEffect, useMemo, useState, useCallback } from 'react';
-import { fetchGrid } from '../../lib/api';
+function normalizeGrid(grid, from, to) {
+  const banks = Array.isArray(grid) ? grid : grid?.banks || [];
+  const people = grid?.people || [];
+  const tasks = [];
 
-// crude ISO -> Date
-const toDate = (v) => {
-  if (v instanceof Date) return v;
-  if (typeof v === 'number') return new Date(v);
-  if (typeof v === 'string') {
-    // accept 'YYYY-MM-DD' or full ISO
-    const d = new Date(v);
-    if (!isNaN(d)) return d;
+  for (const b of banks) {
+    for (const p of b.projects || []) {
+      for (const ph of p.phases || []) {
+        for (const a of ph.assignments || []) {
+          tasks.push({
+            id: String(a.id),
+            assignmentId: a.id,
+            phaseId: ph.id,
+            projectId: p.id,
+            bankId: b.id,
+            personId: a.personId,
+            startDate: a.startDate,
+            assignedDays: a.assignedDays,
+            // for display
+            title: ph.title || `Phase ${ph.id}`,
+            color: b.color || ph.color || "#2563eb",
+          });
+        }
+      }
+    }
   }
-  return null;
-};
 
-// Try multiple shapes to extract arrays
-function normalizeGrid(result) {
-  if (!result || typeof result !== 'object') return { people: [], tasks: [] };
-
-  const people =
-    result.people ||
-    result.persons ||
-    result.resources ||
-    [];
-
-  // common assignment collections
-  const collections = [
-    result.tasks, result.items, result.assignments, result.cards, result.phases,
-  ].filter(Boolean);
-
-  // pick first non-empty; else []
-  const rawTasks = collections.find(a => Array.isArray(a) && a.length) || [];
-
-  // map tasks
-  const tasks = rawTasks.map((t, idx) => {
-    const id = String(t.id ?? t.taskId ?? t.cardId ?? `T${idx+1}`);
-    const personId = String(
-      t.personId ?? t.assigneeId ?? t.resourceId ?? t.ownerId ?? t.person?.id ?? 'P1'
-    );
-    const start =
-      toDate(t.startDate) || toDate(t.start) || toDate(t.begin) || new Date();
-
-    const durationDays = Number(
-      t.durationDays ?? t.duration ?? t.days ?? 1
-    ) || 1;
-
-    const title = t.title ?? t.name ?? t.summary ?? 'Untitled';
-    const color = t.color ?? t.colour ?? t.hex ?? undefined;
-
-    return { id, personId, start, durationDays, title, color };
-  });
-
-  // If no explicit people, derive unique set from tasks
-  const peopleOut = Array.isArray(people) && people.length
-    ? people.map(p => ({ id: String(p.id ?? p.personId ?? p.key ?? p.code ?? 'P?'), name: p.name ?? p.title ?? `Person ${p.id ?? '?'}`, color: p.color }))
-    : Array.from(new Set(tasks.map(t => t.personId))).map((pid, i) => ({ id: String(pid), name: `Person ${pid}` }));
-
-  return { people: peopleOut, tasks };
+  return { people, tasks, weeks: buildWeeks(from, to) };
 }
 
-export default function usePlannerData({ range, scenarioId = null }) {
-  const [state, setState] = useState({ people: [], tasks: [] });
-  const [error, setError] = useState(null);
-  const from = range?.from ?? null;
-  const to = range?.to ?? null;
+/**
+ * Utility: build week ranges between from..to
+ */
+function buildWeeks(from, to) {
+  const weeks = [];
+  const start = new Date(from);
+  let idx = 0;
+  while (start < to) {
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    weeks.push({ start: new Date(start), end, index: idx++ });
+    start.setDate(start.getDate() + 7);
+  }
+  return weeks;
+}
 
-  const refreshGrid = useCallback(async () => {
-    setError(null);
-    try {
-      const res = await fetchGrid?.(from, to, scenarioId);
-      const normalized = normalizeGrid(res);
-      setState(normalized);
-    } catch (e) {
-      // Silent fallback — NewGrid will show demo data
-      setError(e);
-      setState({ people: [], tasks: [] });
-    }
+export default function usePlannerData(from, to, scenarioId) {
+  const [people, setPeople] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [weeks, setWeeks] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const grid = await fetchGridPhases(from, to, scenarioId);
+        if (cancelled) return;
+        const { people, tasks, weeks } = normalizeGrid(grid, from, to);
+        setPeople(people);
+        setTasks(tasks);
+        setWeeks(weeks);
+      } catch (e) {
+        console.error("usePlannerData fetch failed", e);
+        if (!cancelled) {
+          setPeople([]);
+          setTasks([]);
+          setWeeks(buildWeeks(from, to));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [from, to, scenarioId]);
 
-  // refresh on deps change
-  useEffect(() => { if (from && to) refreshGrid(); }, [refreshGrid]);
-
-  return {
-    people: state.people,
-    tasks: state.tasks,
-    error,
-    refreshGrid,
-  };
+  return { people, tasks, weeks, loading };
 }

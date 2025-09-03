@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Routing;
+using PlanCraft.Api.Handlers;
 
 namespace PlanCraft.Api.Endpoints;
 

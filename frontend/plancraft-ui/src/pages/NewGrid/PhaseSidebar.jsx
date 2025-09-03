@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useDraggable } from '@dnd-kit/core'
-import { fetchBanks, fetchProjects, getPhases } from '../../lib/api'
 
 function PhaseItem({ phase, totalDays = 0, remainingDays = 0 }){
   const id = `phase:${phase.id}`
@@ -24,36 +23,43 @@ function PhaseItem({ phase, totalDays = 0, remainingDays = 0 }){
   )
 }
 
-export default function PhaseSidebar({ onPhaseIndex, onVisibilityChange, remainingByPhase = {}, hideFullyAssigned = false }){
+export default function PhaseSidebar({ banks: banksProp, projectsByBank: projectsByBankProp, 
+  onPhaseIndex,
+  onVisibilityChange,
+  remainingByPhase = {},
+  hideFullyAssigned = false,
+  onCatalogs
+}){
   const [banks, setBanks] = useState([])
   const [projects, setProjects] = useState([])
   const [phasesByProject, setPhasesByProject] = useState({})
   const [openBank, setOpenBank] = useState({})
   const [openProj, setOpenProj] = useState({})
 
+  // if catalogs are provided by parent, use them (no API calls here)
+  useEffect(() => {
+    if (Array.isArray(banksProp) && banksProp.length) setBanks(banksProp);
+  }, [banksProp]);
+
+  useEffect(() => {
+    if (projectsByBankProp && Object.keys(projectsByBankProp).length) {
+      // flatten to projects array and seed phasesByProject directly from props
+      const prjs = [];
+      const out = {};
+      Object.entries(projectsByBankProp).forEach(([bankId, list]) => {
+        list.forEach(p => {
+          prjs.push({ ...p, bankId: Number(bankId) });
+          out[p.id] = p.phases || [];
+        });
+      });
+      setProjects(prjs);
+      setPhasesByProject(out);
+    }
+  }, [projectsByBankProp]);
+
   // stable emitter to avoid parent re-render loops
   const emitRef = useRef(() => {})
   useEffect(() => { emitRef.current = onVisibilityChange || (() => {}) }, [onVisibilityChange])
-
-  useEffect(() => {
-    fetchBanks().then(setBanks).catch(()=>setBanks([]))
-    fetchProjects().then(setProjects).catch(()=>setProjects([]))
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      const out = {}
-      for(const p of projects){
-        try{
-          const phases = await getPhases(p.id)
-          out[p.id] = (phases || []).map(ph => ({ ...ph, projectId: p.id }))
-        }catch{ out[p.id] = [] }
-      }
-      if(!cancelled) setPhasesByProject(out)
-    })()
-    return () => { cancelled = true }
-  }, [projects])
 
   // Expose phase index (enriched with bank color) to parent
   useEffect(() => {
@@ -86,6 +92,26 @@ export default function PhaseSidebar({ onPhaseIndex, onVisibilityChange, remaini
     }
     return by
   }, [projects])
+
+  // Emit catalogs (banks + projects) to parent
+  useEffect(() => {
+    if (typeof onCatalogs !== 'function') return
+    const banksCatalog = (banks || []).map(b => ({
+      id: b.id, name: b.name, color: b.color
+    }))
+    const projMap = {}
+    for (const p of (projects || [])) {
+      const bid = String(p.bankId ?? p.clientId ?? 'none')
+      if (!projMap[bid]) projMap[bid] = []
+      if (!projMap[bid].some(x => String(x.id) === String(p.id))) {
+        projMap[bid].push({ id: p.id, name: p.name, phases: phasesByProject[p.id] || [] })
+      }
+    }
+    for (const k of Object.keys(projMap)) {
+      projMap[k].sort((a,b)=> String(a.name).localeCompare(String(b.name)))
+    }
+    onCatalogs({ banks: banksCatalog, projectsByBank: projMap })
+  }, [onCatalogs, banks, projects, phasesByProject])
 
   // Emit visible phases (by opened projects) to parent
   useEffect(() => {

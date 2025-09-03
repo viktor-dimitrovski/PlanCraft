@@ -348,4 +348,5 @@ public record PhaseAssignment
     public Person? Person { get; set; }
     public int AssignedDays { get; set; } // MD
     public DateTime? StartDate { get; set; } // when this assignment begins for the person
+    public int? ParentAssignmentId { get; set; }
 }

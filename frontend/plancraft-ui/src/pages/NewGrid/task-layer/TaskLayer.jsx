@@ -8,7 +8,7 @@
  *    tooltip + keyboard affordances (Esc deselect, Del remove).
  *
  * 2) Developer overview:
- *    - Props: { cols, people, zoom, tasks, colWidth, onTaskUpdate }
+ *    - Props: { cols, people, zoom, tasks, colWidth, onTaskUpdate, onRequestSplit, onDeleteAssignment }
  *      * cols: array of time columns (each with .start). people: lane order. zoom: day/week/2w.
  *      * tasks: [{ id, personId, start: Date, durationDays, title, color }]
  *      * onTaskUpdate({ id, personId, start, startDate, durationDays, title, color }) is called on drop.
@@ -75,7 +75,7 @@ function computeLayout({ cols, people, zoom, tasks, colW, laneH }){
   })
 }
 
-export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, onTaskUpdate, onDeleteAssignment }){
+export default function TaskLayer({ cols, people, zoom, tasks = [], colWidth, onTaskUpdate, onDeleteAssignment, onSelectAssignment, onRequestSplit }){
   const rootRef = useRef(null)
   const [laneH, setLaneH] = useState(56)
   const [selectedId, setSelectedId] = useState(null)
@@ -202,7 +202,7 @@ useDndMonitor({
         {...attributes}
         className={`ng-assignment${assignment.warn ? ' ng-assignment--warn' : ''}${selectedId === assignment.id ? ' ng-assignment--selected' : ''}${(isDragging || dragId === assignment.id) ? ' ng-assignment--dragging' : ''}`}
         style={style}
-        onClick={(e) => { e.stopPropagation(); setSelectedId(assignment.id) }}
+        onClick={(e) => { e.stopPropagation(); setSelectedId(assignment.id) }} onContextMenu={(e)=>{ e.preventDefault(); try{ onRequestSplit && onRequestSplit(assignment) }catch{} }}
         onMouseEnter={() => showTipForCard(assignment)}
         onMouseLeave={hideTip}
         tabIndex={0}

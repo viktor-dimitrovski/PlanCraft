@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using PlanCraft.Api.Contracts;
 
-namespace PlanCraft.Api.Endpoints;
+namespace PlanCraft.Api.Handlers;
 
 public static class PhasesHandlers
 {
@@ -155,7 +156,7 @@ public static class PhasesHandlers
             EstimatedDays = phase.EstimatedDays,
             DurationDays = Math.Max(1, phase.EstimatedDays),
             StartDate = startUtc,
-            Status = PlanCraft.Api.TaskStatus.Planned,
+            Status = TaskStatus.Planned,
             RequiredSkills = req.RequiredSkills ?? Array.Empty<string>()
         };
 

@@ -175,10 +175,14 @@
 
 /* sitno dotjerivanje da redovi izgledaju jednako visoki */
 .ap-table tbody tr{
-  height: var(--ap-row-h);
+  /* height: var(--ap-row-h); */
+  min-height: var(--ap-row-h);
+  height: auto;
 }
 .phase-table tbody tr{
-  height: var(--ap-row-h);
+  /* height: var(--ap-row-h); */
+  min-height: var(--ap-row-h);
+  height: auto;
 }
 
 
@@ -1077,3 +1081,24 @@
   font-size:12px; color:#dc2626; margin-top:4px;
 }
 .ap-phaseModal .ap-btn.primary[disabled]{ opacity:.6; cursor:not-allowed; }
+
+
+/* --- Show more / Show less (unclamp when open) --- */
+.ap-title-cell .ap-meta.is-open {
+  -webkit-line-clamp: unset;   /* remove the 2-line clamp */
+  display: block;
+  overflow: visible;
+}
+
+/* allow the Phase cell to grow when expanded */
+.ap-row.is-expanded .ap-title-cell {
+  max-height: none;             /* override the earlier max-height */
+  overflow: visible;
+}
+
+/* allow the table row to grow when expanded */
+.phase-table tbody tr.is-expanded,
+.ap-table tbody tr.is-expanded {
+  height: auto;                  /* override the fixed row height */
+}
+

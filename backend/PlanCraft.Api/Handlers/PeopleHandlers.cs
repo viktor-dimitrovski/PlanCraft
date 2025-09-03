@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace PlanCraft.Api.Endpoints;
+namespace PlanCraft.Api.Handlers;
 
 public static class PeopleHandlers
 {
@@ -20,7 +20,7 @@ public static class PeopleHandlers
         db.Update(p);
         await db.SaveChangesAsync();
         return Results.NoContent();
-    }                                                                                                                                                               
+    }
 
     public static async Task<IResult> Delete(PlanCraftDb db, int id)
     {
