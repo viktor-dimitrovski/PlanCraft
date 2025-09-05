@@ -202,7 +202,12 @@ useDndMonitor({
         {...attributes}
         className={`ng-assignment${assignment.warn ? ' ng-assignment--warn' : ''}${selectedId === assignment.id ? ' ng-assignment--selected' : ''}${(isDragging || dragId === assignment.id) ? ' ng-assignment--dragging' : ''}`}
         style={style}
-        onClick={(e) => { e.stopPropagation(); setSelectedId(assignment.id) }} onContextMenu={(e)=>{ e.preventDefault(); try{ onRequestSplit && onRequestSplit(assignment) }catch{} }}
+        onClick={(e) => { 
+          e.stopPropagation();
+          setSelectedId(assignment.id);
+          try { onSelectAssignment?.({ phaseId: assignment.phaseId, assignmentId: assignment.id }) } catch {}
+        }} 
+        onContextMenu={(e)=>{ e.preventDefault(); try{ onRequestSplit && onRequestSplit(assignment) }catch{} }}
         onMouseEnter={() => showTipForCard(assignment)}
         onMouseLeave={hideTip}
         tabIndex={0}

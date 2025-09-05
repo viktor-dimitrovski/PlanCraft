@@ -222,7 +222,7 @@ public static class PlanHandlers
     }
 
     public sealed record GridRequest(
-    [FromQuery] DateTime? From,
+    [FromQuery] DateTime? From,         
     [FromQuery] DateTime? To,
     [FromQuery] int? ScenarioId // reserved, not used now
 );

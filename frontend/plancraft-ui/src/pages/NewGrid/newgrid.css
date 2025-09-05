@@ -27,7 +27,16 @@
 aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); background:#fff; }
 
 /* body */
-.ng-scroll{ overflow:auto; height:100%; position: relative; } /* establish containing block */
+.ng-scroll, .ng-body, .ng-shell { background: #fff; }
+.ng-scroll{
+ overflow:auto;
+ overflow-x: scroll;  /* секогаш покажи хор. скрол */
+ overflow-y: auto;
+ height:100%;
+ position: relative;
+ scrollbar-gutter: stable both-edges; /* да не „скока“ layout при појава на скролбар */
+}
+
 .ng-body{
   display:grid;
   grid-template-columns: var(--ng-lanesW) 1fr;
@@ -72,7 +81,8 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
 .ng-taskLayer{
   position:absolute; left:0; right:0;
   top: calc(var(--ng-headerH1) + var(--ng-headerH2));
-  bottom:0; pointer-events:none;
+  bottom:80px;
+  pointer-events:none;
 }
 .ng-taskLayer *{ pointer-events:auto; }
 
@@ -168,8 +178,7 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
 .ng-splitPrompt button.primary{ background:#2563eb; color:#fff; border-color:#2563eb; }
 
 
-/* NewGrid override: force white canvas */
-.ng-scroll, .ng-body, .ng-shell { background: #fff; }
+
 
 /* ===== PhaseSidebar layout (title + right-aligned badge) ===== */
 .phaseItem{
@@ -453,3 +462,48 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
   z-index: 7;
   background: #fff;
 }
+
+/* === Layout hardening (no global scroll) === */
+html, body, #root { height: 100vh; overflow: hidden; }
+.ng-shell { height: 100vh; } /* наместо 100% */
+.ng-gridWrap { padding-bottom: 96px; } /* ~80px footer + мал buffer */
+/* Fixed footer strip */
+.ng-footer{
+  position:fixed; left:0; right:0; bottom:0; z-index:70;
+  background:#fff; border-top:1px solid #e5e7eb; padding:8px 12px;
+}
+/* Optional ако сакаш да избегнеш inline style во toast, но сега е вграден во компонентата */
+.ng-footer .ng-toast{ position:absolute; right:0; bottom:0; }
+
+/* Footer height variable (controls layout offsets) */
+:root { --ng-footerH: 80px; } /* target ~80px outer height */
+
+/* The scroll area must leave room for footer and keep the h-scroll visible */
+.ng-scroll{
+  overflow-x: scroll;       /* always show horizontal scroll */
+  overflow-y: auto;
+  height: 100%;
+  position: relative;
+  padding-bottom: var(--ng-footerH); /* reserve space so bar is above footer */
+  scrollbar-gutter: stable both-edges; /* no layout jump when bars appear */
+}
+
+/* Task layer should stop above the footer */
+.ng-taskLayer{
+  position: absolute; left: 0; right: 0;
+  top: calc(var(--ng-headerH1) + var(--ng-headerH2));
+  bottom: var(--ng-footerH);
+  pointer-events: none;
+}
+.ng-taskLayer *{ pointer-events: auto; }
+
+/* Fixed footer strip */
+.ng-footer{
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 70;
+  height: var(--ng-footerH);
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 12px; background: #fff; border-top: 1px solid #e5e7eb;
+}
+
+/* When hidden: collapse to 0 without layout jitter */
+.ng-footer--hidden { display: none; }

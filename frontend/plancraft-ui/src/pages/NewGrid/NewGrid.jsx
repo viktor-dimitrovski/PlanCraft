@@ -32,6 +32,9 @@ import "./newgrid.css";
 import TaskLayer from "./task-layer/TaskLayer";
 import TodayMarker from "./task-layer/TodayMarker";
 import NonWorkLayer from "./task-layer/NonWorkLayer";
+import PhaseDetailsToast from "./PhaseDetailsToast";
+import PlanningFooter from "./PlanningFooter";
+
 import {
   DndContext,
   DragOverlay,
@@ -61,6 +64,8 @@ function LaneRow({ person }) {
 }
 
 export default function NewGrid() {
+  const [showFooter, setShowFooter] = useState(true);
+  const [selectedPhaseData, setSelectedPhaseData] = useState(null);
   const [zoom, setZoom] = useState("week");
   const [startMonth, setStartMonth] = useState(() => {
     const d = new Date();
@@ -81,6 +86,9 @@ export default function NewGrid() {
 
   const colW = zoom === "day" ? 36 : zoom === "week" ? 96 : 128;
   const [laneH, setLaneH] = useState(56);
+  useEffect(() => {
+  document.documentElement.style.setProperty('--ng-footerH', showFooter ? '80px' : '0px');
+}, [showFooter]);
   useEffect(() => {
     const cs = getComputedStyle(document.documentElement);
     const lh = parseFloat(cs.getPropertyValue("--ng-laneH")) || 56;
@@ -123,7 +131,7 @@ export default function NewGrid() {
 
         for (const b of (banks || [])) {
           const bid = String(b.id);
-          pbb[bid] = (b.projects || []).map(p => ({ id: p.id, name: p.name }));
+          pbb[bid] = (b.projects || []).map(p => ({ id: p.id, name: p.name, phases: p.phases || [] }));
 
           for (const p of (b.projects || [])) {
             for (const ph of (p.phases || [])) {
@@ -133,6 +141,8 @@ export default function NewGrid() {
                 bankId: b.id,
                 title: ph.title || ph.name,
                 color: b.color || ph.color || '#2563eb',
+                estimatedDays: ph.estimatedDays ?? ph.durationDays ?? ph.days ?? null,
+                description: ph.description || ''
               };
               for (const a of (ph.assignments || [])) {
                 collected.push({
@@ -759,8 +769,118 @@ async function onDragEnd(evt) {
    }
  };
 
+function computePhaseOverview(assignment, { phaseIndex, banksCatalog, assignmentsCache }) {
+  const phaseId = Number(assignment.phaseId);
+  const ph = phaseIndex[String(phaseId)] || {};
+  const bank = banksCatalog.find(b => String(b.id) === String(ph.bankId));
+  const list = assignmentsCache.get(phaseId) || [];
+
+  // earliest start (прв доделен ден на било кој сегмент)
+  const earliest = list.reduce((min, a) => {
+    const d = new Date(a.startDate); d.setHours(0,0,0,0);
+    return (!min || d < min) ? d : min;
+  }, null);
+
+  // latest end (последен ден од последниот сегмент)
+  const latest = list.reduce((max, a) => {
+    const d = new Date(a.startDate);
+    d.setDate(d.getDate() + Math.max(0, Number(a.assignedDays||0) - 1));
+    d.setHours(0,0,0,0);
+    return (!max || d > max) ? d : max;
+  }, null);
+
+  const fmt = (d) => d ? d.toISOString().slice(0,10) : '—';
+  const estDays = ph.estimatedDays ?? ph.durationDays ?? ph.days ?? null;
+
+  // ако assignment има проценти, користи ги; иначе прикажи "scheduled / estimate"
+  const completion = (typeof assignment.percentageComplete === 'number')
+    ? `${Math.round(assignment.percentageComplete)}%`
+    : (estDays
+        ? `${list.reduce((s,a)=>s + Number(a.assignedDays||0),0)}/${Number(estDays)}d scheduled`
+        : '—');
+
+  return {
+    bank: bank?.name || '—',
+    color: ph.color || bank?.color || '#2563eb',
+    title: ph.title || ph.name || `Phase ${phaseId}`,
+    description: ph.description || '',
+    start: fmt(earliest),
+    end: fmt(latest),
+    est: estDays ? `${Number(estDays)}d` : '—',
+    completion
+  };
+}
+
+// function onSelectAssignment(assignment){
+//   const data = computePhaseOverview(assignment, { phaseIndex, banksCatalog, assignmentsCache });
+//   setSelectedPhaseData(data);
+// }
+
+// Parent-side resolver. Safe even if assignment is incomplete or absent.
+function computePhaseOverviewFromPhase(phaseId, assignmentId = null) {
+  // 1) Phase meta
+  const ph = phaseIndex[String(phaseId)] || {};
+  const bank = banksCatalog?.find?.(b => String(b.id) === String(ph.bankId));
+
+  // 2) All chunks for this phase (can be empty)
+  const chunks = assignmentsCache.get(Number(phaseId)) || [];
+
+  // 3) Earliest start / latest end across all chunks (even if no clicked assignment)
+  const earliest = chunks.reduce((min, a) => {
+    const d = new Date(a.startDate); d.setHours(0,0,0,0);
+    return (!min || d < min) ? d : min;
+  }, null);
+
+  const latest = chunks.reduce((max, a) => {
+    const d = new Date(a.startDate);
+    d.setDate(d.getDate() + Math.max(0, Number(a.assignedDays||0) - 1));
+    d.setHours(0,0,0,0);
+    return (!max || d > max) ? d : max;
+  }, null);
+
+  // 4) Estimation + scheduled/remaining from phaseIndex + cache
+  const estDays = ph.estimatedDays ?? ph.durationDays ?? ph.days ?? null;
+  const scheduled = chunks.reduce((s,a)=> s + Number(a.assignedDays||0), 0);
+
+  // 5) Completion:
+  //    Prefer the clicked assignment’s percentage (if we can match it in tasks),
+  //    else fall back to scheduled/estimated summary.
+  let completion = '—';
+  if (assignmentId != null) {
+    const t = tasks.find(t => String(t.assignmentId) === String(assignmentId));
+    if (t && typeof t.percentageComplete === 'number') {
+      completion = `${Math.round(t.percentageComplete)}%`;
+    }
+  }
+  if (completion === '—') {
+    completion = (estDays != null) ? `${scheduled}/${Number(estDays)}d scheduled` : '—';
+  }
+
+  const fmt = (d) => d ? d.toISOString().slice(0,10) : '—';
+
+  return {
+    bank: bank?.name || '—',
+    color: ph.color || bank?.color || '#2563eb',
+    title: ph.title || ph.name || `Phase ${phaseId}`,
+    description: ph.description || '',
+    start: fmt(earliest),
+    end: fmt(latest),
+    est: estDays != null ? `${Number(estDays)}d` : '—',
+    completion
+  };
+}
+
+// This is the callback you pass to children (can be called with partial data)
+function onSelectAssignment({ phaseId, assignmentId }){
+  if (phaseId == null) return;
+  setSelectedPhaseData(
+    computePhaseOverviewFromPhase(Number(phaseId), assignmentId ?? null)
+  );
+}
+
 
   return (
+  <>
     <DndContext
       sensors={sensors}
       onDragStart={onDragStart}
@@ -778,6 +898,9 @@ async function onDragEnd(evt) {
         cardStyle === "clarity" ? "ng-style-clarity" : ""
       }`}>
         <div className="ng-toolbar">
+          <button className="ng-btn" onClick={() => setShowFooter(s => !s)}>
+            {showFooter ? 'Hide footer' : 'Show footer'}
+          </button>
           <button
             className="ng-btn"
             onClick={() => {
@@ -988,6 +1111,7 @@ async function onDragEnd(evt) {
                     colWidth={colW}
                     onDeleteAssignment={onDeleteAssignment}
                     onRequestSplit={(assignment)=> setSplitExisting({ assignmentId: assignment.id, personId: assignment.personId, startDate: assignment.start.toISOString().slice(0,10), assignedDays: assignment.durationDays, title: assignment.title })}
+                    onSelectAssignment={onSelectAssignment}
                   />
 
                   {dropPreview && (
@@ -1109,8 +1233,19 @@ async function onDragEnd(evt) {
             </div>
           </div>
         )}
-<DragOverlay>{renderGhost()}</DragOverlay>
+        <DragOverlay>{renderGhost()}</DragOverlay>
       </div>
     </DndContext>
+    {showFooter && (
+      <PlanningFooter
+        period={{ from, to }}
+        people={people}
+        phaseIndex={phaseIndex}
+        assignmentsCache={assignmentsCache}
+        selectedPhaseData={selectedPhaseData}
+        onCloseToast={() => setSelectedPhaseData(null)}
+      />
+    )}
+  </>
   );
 }
