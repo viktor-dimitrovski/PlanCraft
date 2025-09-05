@@ -6,3 +6,4 @@ if exist "%GITBASH%" (
 ) else (
   echo [ERR] Git Bash not found at "%GITBASH%". Please install Git for Windows or run deploy-react.sh from Git Bash.
 )
+pause

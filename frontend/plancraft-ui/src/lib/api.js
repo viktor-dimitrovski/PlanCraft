@@ -2,7 +2,9 @@
 // Full 1:1 coverage of Planning Grid server routes.
 
 // NOTE: Expect ESM (Vite). You can override the base via VITE_API_BASE, e.g. "http://localhost:5058/api".
-export const BASE = (import.meta?.env?.VITE_API_BASE) ?? 'http://localhost:5058/api';
+// export const BASE = (import.meta?.env?.VITE_API_BASE) ?? 'http://localhost:5058/api';
+// Always take from env
+export const BASE = import.meta.env.VITE_API_BASE;
 
 /** Build a clean URL without breaking http(s):// */
 function buildUrl(path) {
