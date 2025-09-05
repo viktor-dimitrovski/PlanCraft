@@ -198,11 +198,16 @@ const grid = await fetchGridPhases(from, to);
           for (const p of b.projects || []) {
             for (const ph of p.phases || []) {
               //debugger
-              idx[String(ph.id)] = {
-                id: ph.id,
+              idx[String(ph.id)] = {id: ph.id,
                 projectId: p.id,
                 bankId: b.id,            // fix here
-                bankName: b.name,        // add here
+                bankName: b.name,
+                bankPrefix: (() => {
+                  const raw = (b.code || b.shortCode || b.abbr || b.name) || '';
+                  const pref = String(raw).toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,8);
+                  return pref || null;
+                })(),
+// add here
                 title: ph.title || ph.name,
                 color: b.color || ph.color || "#2563eb",
                 estimatedDays:
@@ -247,7 +252,7 @@ const grid = await fetchGridPhases(from, to);
             personId: Number(a.personId),
             start: new Date(a.startDate),
             durationDays: Number(a.assignedDays || 0),
-            title: idx[String(a.phaseId)]?.title || `Phase ${a.phaseId}`,
+	    title: `${idx[String(a.phaseId)]?.bankPrefix}:${idx[String(a.phaseId)]?.title}`,
             color: idx[String(a.phaseId)]?.color || "#2563eb",
           }))
         );
@@ -582,10 +587,7 @@ const grid = await fetchGridPhases(from, to);
     );
     const spanCols = Math.max(1, Math.ceil(days / dpc));
     const widthPx = spanCols * colW;
-    const title =
-      phase.bankPrefix +
-      ":" +
-      (phase.title || phase.name || `Phase ${phaseId}`);
+    const title = phase.bankPrefix + ":" + phase.title;
     return (
       <div className="ng-ghostCard" style={{ width: widthPx }}>
         <div className="ng-ghostTitle">{title}</div>

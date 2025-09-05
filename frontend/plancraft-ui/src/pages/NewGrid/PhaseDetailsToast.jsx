@@ -24,14 +24,13 @@ export default function PhaseDetailsToast({ data, onClose }) {
     return () => clearTimeout(t);
   }, [data, onClose]);
 
-  if (!data) return null;
 
   // ---------- Date formatting ----------
   const dateFormat = data?.dateFormat || window.__PLANGRID_DATE_FMT || "dd.MM.yyyy";
   const fmtDate = useMemo(() => makeFormatter(dateFormat), [dateFormat]);
 
   // Normalize description
-  const desc = (data.description ?? "").trim();
+  const desc = String(data?.description ?? "").trim();
   const LIMIT = 220;
   const isLong = desc.length > LIMIT;
   const visibleText = expanded || !isLong ? desc : desc.slice(0, LIMIT) + "…";
@@ -64,6 +63,8 @@ export default function PhaseDetailsToast({ data, onClose }) {
     }
     return [];
   }, [data, fmtDate]);
+
+  if (!data) return null;
 
   // ---------- UI ----------
   return (
