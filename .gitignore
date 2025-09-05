@@ -9,6 +9,7 @@ logs/
 *.pid
 *.seed
 *.pid.lock
+*.dll
 
 # OS cruft
 .DS_Store
@@ -40,6 +41,7 @@ Desktop.ini
 # Frontend (Vite / React / Node)
 # ------------------------------
 node_modules/
+publish/
 dist/
 build/
 .vite/
