@@ -5,7 +5,7 @@ import PhaseDetailsToast from "./PhaseDetailsToast";
 const fmt = (d) => { try { return d?.toISOString?.().slice(0,10) || "—"; } catch { return "—"; } };
 
 export default function PlanningFooter({
-  period, people = [], phaseIndex = {}, assignmentsCache,
+  period, people = [], phaseIndex = {}, assignmentsCache, onToggle, showToggle,
   projectsByBank = {}, selectedPhaseData, onCloseToast
 }) {
   const stats = useMemo(() => {
@@ -31,11 +31,16 @@ export default function PlanningFooter({
       className="ng-footer"
       style={{
         position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 70,
-        height: 80, display: "flex", alignItems: "center",
+        height: "var(--ng-footerH)", display: "flex", alignItems: "center",
         gap: 12, padding: "8px 12px",
         background: "#fff", borderTop: "1px solid #e5e7eb"
       }}
     >
+      {showToggle && (
+        <button onClick={onToggle} style={{ marginRight: 8 }}>
+          Hide footer
+        </button>
+      )}
       {/* единствен лев-алигниран блок (ќе тече колку што собира) */}
       <Badge label="Period" value={`${fmt(period?.from)} → ${fmt(period?.to)}`} />
       <Badge label="Phases" value={stats.phases} />

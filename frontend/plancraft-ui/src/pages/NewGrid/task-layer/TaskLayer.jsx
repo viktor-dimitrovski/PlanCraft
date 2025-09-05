@@ -66,6 +66,7 @@ function computeLayout({ cols, people, zoom, tasks, colW, laneH }){
       title: t.title || 'Untitled',
       color: t.color || '#2563eb',
       personId: String(t.personId),
+      phaseId: Number(t.phaseId), 
       start,
       durationDays: Number(t.durationDays || 1),
       percentageComplete: Number(t.percentageComplete ?? t.progress ?? 0),

@@ -1,0 +1,122 @@
+--- a/src/lib/api.js
++++ b/src/lib/api.js
+@@ -13,12 +13,118 @@
+   return `${left}/${right}`;
+ }
+ 
++
++/* =========================== AUTH (JWT) =========================== */
++/**
++ * Centralized JWT auth for all API calls.
++ * - Stores token in memory + localStorage
++ * - Adds Authorization header automatically
++ * - Exposes login/logout/whoami and a tiny subscribe mechanism
++ */
++const TOKEN_KEY = (import.meta.env.VITE_AUTH_TOKEN_KEY || 'hp.jwt').trim();
++const TOKEN_EXP_KEY = TOKEN_KEY + '.exp';
++const SKEW_SECONDS = 30; // refresh margin
++
++let _token = null;
++let _expUtc = null;
++try {
++  const t = localStorage.getItem(TOKEN_KEY);
++  const e = localStorage.getItem(TOKEN_EXP_KEY);
++  _token = t || null;
++  _expUtc = e ? new Date(e) : null;
++} catch {}
++
++function _nowUtc() { return new Date(); }
++function _isExpired() {
++  if (!_token || !_expUtc) return true;
++  return (_expUtc.getTime() - SKEW_SECONDS * 1000) <= _nowUtc().getTime();
++}
++
++function _decodeJwtExp(jwt) {
++  try {
++    const [, payload] = jwt.split('.');
++    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
++    if (json && typeof json.exp === 'number') {
++      return new Date(json.exp * 1000);
++    }
++  } catch {}
++  return null;
++}
++
++function setAuthToken(token, expiresAtUtc) {
++  _token = token || null;
++  _expUtc = null;
++  if (_token) {
++    _expUtc = expiresAtUtc ? new Date(expiresAtUtc) : _decodeJwtExp(_token);
++  }
++  try {
++    if (_token) {
++      localStorage.setItem(TOKEN_KEY, _token);
++      if (_expUtc) localStorage.setItem(TOKEN_EXP_KEY, _expUtc.toISOString());
++    } else {
++      localStorage.removeItem(TOKEN_KEY);
++      localStorage.removeItem(TOKEN_EXP_KEY);
++    }
++  } catch {}
++  _emitAuthChange();
++}
++
++function getAuthToken() {
++  if (_isExpired()) return null;
++  return _token;
++}
++
++function clearAuth() { setAuthToken(null, null); }
++
++const _listeners = new Set();
++function onAuthChange(cb) { _listeners.add(cb); return () => _listeners.delete(cb); }
++function _emitAuthChange() { for (const cb of _listeners) { try { cb({ token: _token, exp: _expUtc }); } catch {} } }
++
++/** Minimal login against /auth/login returning { token, expiresAtUtc } */
++async function login(username, password) {
++  const res = await fetch(buildUrl('auth/login'), {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify({ username, password })
++  });
++  if (!res.ok) {
++    const text = await res.text().catch(()=>''); 
++    throw new Error(`Login failed (${res.status}): ${text}`);
++  }
++  const data = await res.json();
++  setAuthToken(data.token, data.expiresAtUtc);
++  return data;
++}
++
++/** Optional helper to inspect current principal (requires auth) */
++async function whoAmI() {
++  return request('auth/whoami', { method: 'GET' });
++}
++
++export const auth = {
++  login, logout: clearAuth, whoAmI,
++  getToken: getAuthToken, setToken: setAuthToken,
++  onChange: onAuthChange
++};
++
++
+ /** Core request helper */
+ async function request(path, options = {}) {
++  const token = getAuthToken();
++  const baseHeaders = { 'Content-Type': 'application/json' };
++  const authHeader = token ? { 'Authorization': `Bearer ${token}` } : {};
++  const mergedHeaders = { ...baseHeaders, ...authHeader, ...(options.headers || {}) };
++
+   const res = await fetch(buildUrl(path), {
+-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+     ...options,
++    headers: mergedHeaders,
+   });
++
++  if (res.status === 401) {
++    // Token invalid/expired; clear and notify listeners
++    clearAuth();
++  }
++
+   if (!res.ok) {
+     const text = await res.text().catch(() => '');
+     throw new Error(`HTTP ${res.status} ${res.statusText}: ${text}`);

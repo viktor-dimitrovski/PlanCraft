@@ -7,6 +7,7 @@
   --ng-colW: 96px;
   --ng-stroke: #e5e7eb;
   --ng-accent: #2563eb;
+  --ng-footerH: 80px;
 }
 
 /* layout */
@@ -23,18 +24,19 @@
   background:#f8fafc;
 }
 .ng-gridWrap{ grid-column: 2; grid-row: 2; min-width:0; position:relative; }
-.ng-left{ padding:8px; }
+.ng-left{ padding:8px; height:100%; overflow-y:auto; }
+aside{ display:flex; flex-direction:column; }
 aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); background:#fff; }
 
 /* body */
 .ng-scroll, .ng-body, .ng-shell { background: #fff; }
 .ng-scroll{
- overflow:auto;
- overflow-x: scroll;  /* секогаш покажи хор. скрол */
- overflow-y: auto;
- height:100%;
- position: relative;
- scrollbar-gutter: stable both-edges; /* да не „скока“ layout при појава на скролбар */
+  overflow-x: scroll;  /* секогаш покажи хор. скрол */
+  overflow-y: auto;
+  height:100%;
+  position: relative; 
+  padding-bottom: var(--ng-footerH); /* keep horizontal bar above footer */
+  scrollbar-gutter: stable both-edges;
 }
 
 .ng-body{
@@ -81,10 +83,9 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
 .ng-taskLayer{
   position:absolute; left:0; right:0;
   top: calc(var(--ng-headerH1) + var(--ng-headerH2));
-  bottom:80px;
-  pointer-events:none;
+  bottom: var(--ng-footerH);
+  pointer-events: none;
 }
-.ng-taskLayer *{ pointer-events:auto; }
 
 /* sidebar phases */
 .ng-phases .bank{ margin-bottom:6px; }
@@ -204,6 +205,18 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
 }
 
 /* ===== Sidebar hierarchy clarity ===== */
+.ng-phases .bankRow{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  align-items:center;
+  gap:6px;
+}
+.ng-phases .projRow{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  align-items:center;
+  gap:6px;
+}
 .ng-phases .bankBtn{
   display:flex;
   align-items:center;
@@ -215,15 +228,12 @@ aside{ grid-column:1; grid-row:2; border-right:1px solid var(--ng-stroke); backg
   padding:8px 10px;
   border-radius:10px;
 }
-.ng-phases .projBtn{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  width:100%;
-  font-weight:500;
-  background:#f9fafb;
-  padding:6px 10px;
-  border-radius:8px;
+.ng-phases .projBtn{ min-width:0; } /* allow text to ellipsis */
+.ng-phases .projRow .phaseList{
+  /* grid-column: 1 / -1;   take full width below the row */
+  margin-left: 6px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(2,6,23,.06);
 }
 .ng-phases .dot{
   width:10px;
@@ -507,3 +517,15 @@ html, body, #root { height: 100vh; overflow: hidden; }
 
 /* When hidden: collapse to 0 without layout jitter */
 .ng-footer--hidden { display: none; }
+
+.bankSel,.projSel{
+  width:22px; height:22px; border-radius:6px;
+  border:1px solid var(--ng-stroke); background:#fff; cursor:pointer;
+  position:relative; flex-shrink:0;
+}
+.bankRow.is-selected .bankSel::after,
+.projRow.is-selected .projSel::after{
+  content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:13px;
+}
+.projRow{ display:flex; align-items:center; gap:6px; }
