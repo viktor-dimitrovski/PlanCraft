@@ -6,8 +6,8 @@ export default function SideNav({ active, open, onClose }) {
   const links = [
     { href: "#/grid", label: "Planner", icon: IconCalendar },
     { href: "#/admin", label: "Admin", icon: IconCog },
-    { href: '#/admin/phases',   label: 'Admin • Phases', icon: IconListCheck },
-    { href: "#/planner", label: "Legacy Grid", icon: IconGrid },
+    // { href: '#/admin/phases',   label: 'Admin • Phases', icon: IconListCheck },
+    // { href: "#/planner", label: "Legacy Grid", icon: IconGrid },
   ];
 
   function IconListCheck(props){

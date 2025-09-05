@@ -80,19 +80,80 @@
 }
 
 /* Launcher (the small floating button to open the drawer) */
+/* Launcher (the small floating button to open the drawer) */
 .nav-launcher {
   position: fixed;
   left: 12px;
-  bottom: 12px;
-  z-index: 60;
-  border: 1px solid #93c5fd;
-  background: #fff;
+  /* крени го над футерот ако постои, инаку останува 12px */
+  bottom: calc(12px + var(--ng-footerH, 0px));
+  /* над .ng-footer (70) и DnD overlay (60), но под самата нав-фиока (1001) */
+bottom: calc(12px + var(--ng-footerH, 0px));
+  z-index: 120;
+  display: inline-flex; align-items: center; gap: 6px;
   border-radius: 999px;
   padding: 10px 14px;
-  box-shadow: 0 6px 20px rgba(15, 23, 42, .08);
-  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: .2px;
+   box-shadow: 0 6px 20px rgba(0,0,0,.18);
+   transition: transform .08s ease, box-shadow .12s ease, background-color .12s ease, border-color .12s ease;
+   cursor: pointer;
 }
+.nav-launcher:active{ transform: translateY(1px); }
+.nav-launcher:focus-visible{
+  outline: 3px solid #fff;            /* visible on dark */
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px #111827;      /* fallback focus ring */
+}
+
 .nav-launcher:hover { background:#f8fafc; }
 
 /* Hide launcher while drawer is open */
 .nav-open .nav-launcher{ opacity: 0; pointer-events: none; }
+.nav-launcher-top {
+  top: 50px;
+  left: 220px;;
+  bottom: auto;
+}
+.nav-contrast{
+  background: #000; color: #fff; border: 2px solid #fff;
+}
+
+
+
+
+/* 1) High-contrast black */
+.nav-contrast{
+  background: #000; color: #fff; border: 2px solid #fff;
+}
+.nav-contrast:hover{ background: #0a0a0a; }
+
+/* 2) Primary electric blue */
+.nav-primary{
+  background: #0B5FFF; color: #fff; border: 2px solid #022B9C;
+}
+.nav-primary:hover{ background: #0A53E8; }
+
+/* 3) Safety orange */
+.nav-warning{
+  background: #C75100; color: #fff; border: 2px solid #6B2E00;
+}
+.nav-warning:hover{ background: #B34800; }
+
+/* 4) Emerald */
+.nav-success{
+  background: #047857; color: #fff; border: 2px solid #065F46;
+}
+.nav-success:hover{ background: #066C50; }
+
+/* 5) Magenta on near-black (very punchy) */
+.nav-magenta{
+  background: #0B0B10; color: #FFFFFF; border: 2px solid #9c1fff;
+  box-shadow: 0 8px 24px rgba(255,31,140,.25);
+}
+.nav-magenta:hover{ background: #11121A; }
+
+/* 6) White pill with heavy outline (works on busy backgrounds) */
+.nav-outline{
+  background: #FFFFFF; color: #111827; border: 3px solid #111827;
+}
+.nav-outline:hover{ background: #F9FAFB; }
